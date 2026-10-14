@@ -1171,42 +1171,6 @@ function JavaGradleVisualizer() {
   return /*#__PURE__*/React.createElement("div", {
     className: "java-visualizer-container"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "concept-hero-card"
-  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '10px',
-      marginBottom: '6px'
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: '24px'
-    }
-  }, "☕"), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: '18px',
-      fontWeight: '800',
-      color: '#ffffff'
-    }
-  }, "Java OOP Architecture & Gradle Build System Deep Dive"), /*#__PURE__*/React.createElement("span", {
-    className: "concept-badge",
-    style: {
-      background: 'rgba(234, 179, 8, 0.15)',
-      borderColor: '#eab308',
-      color: '#facc15'
-    }
-  }, "ACADEMIC PRESENTATION GUIDE")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: '13px',
-      color: '#cbd5e1',
-      lineHeight: '1.5'
-    }
-  }, "A comprehensive, teacher-ready breakdown of how Object-Oriented Programming (Classes, Objects, Inheritance, Polymorphism, Encapsulation, Abstraction), JVM Memory, and Gradle build automation are implemented in SafeCall AI.")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("a", {
-    href: "SafeCall_AI_Java_Architecture_and_Viva_Report.pdf",
-    target: "_blank",
-    className: "pdf-download-btn"
-  }, /*#__PURE__*/React.createElement("span", null, "📄"), " Download Defense Guide (PDF)"))), /*#__PURE__*/React.createElement("div", {
     className: "java-subnav-bar"
   }, /*#__PURE__*/React.createElement("button", {
     className: `java-subnav-btn ${subTab === "pillars" ? "active" : ""}`,
@@ -2088,42 +2052,6 @@ function PipelineVisualizer({
   return /*#__PURE__*/React.createElement("div", {
     className: "pipeline-container"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "pdf-download-card"
-  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '10px',
-      marginBottom: '6px'
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: '20px'
-    }
-  }, "📄"), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: '16px',
-      fontWeight: '800',
-      color: '#ffffff'
-    }
-  }, "Academic Viva Defense Guide & Java Architecture Technical Specification"), /*#__PURE__*/React.createElement("span", {
-    className: "concept-badge",
-    style: {
-      background: 'rgba(56, 189, 248, 0.2)',
-      borderColor: '#38bdf8',
-      color: '#38bdf8'
-    }
-  }, "PDF AVAILABLE")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: '13px',
-      color: '#cbd5e1',
-      lineHeight: '1.5'
-    }
-  }, "Comprehensive documentation covering Java OOP principles (Encapsulation, Composition, Polymorphism), Design Patterns (Singleton, Observer, Strategy, Repository), Android Telephony state machine, and the Top 20 Professor Defense Questions.")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("a", {
-    href: "SafeCall_AI_Java_Architecture_and_Viva_Report.pdf",
-    target: "_blank",
-    className: "pdf-download-btn"
-  }, /*#__PURE__*/React.createElement("span", null, "📄"), " Open Viva Guide (PDF)"))), /*#__PURE__*/React.createElement("div", {
     className: "telemetry-grid"
   }, /*#__PURE__*/React.createElement("div", {
     className: "telemetry-card"

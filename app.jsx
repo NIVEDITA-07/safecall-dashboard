@@ -1045,29 +1045,6 @@ function JavaGradleVisualizer() {
 
   return (
     <div className="java-visualizer-container">
-      {/* Hero Banner */}
-      <div className="concept-hero-card">
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
-            <span style={{ fontSize: '24px' }}>☕</span>
-            <span style={{ fontSize: '18px', fontWeight: '800', color: '#ffffff' }}>
-              Java OOP Architecture &amp; Gradle Build System Deep Dive
-            </span>
-            <span className="concept-badge" style={{ background: 'rgba(234, 179, 8, 0.15)', borderColor: '#eab308', color: '#facc15' }}>
-              ACADEMIC PRESENTATION GUIDE
-            </span>
-          </div>
-          <div style={{ fontSize: '13px', color: '#cbd5e1', lineHeight: '1.5' }}>
-            A comprehensive, teacher-ready breakdown of how Object-Oriented Programming (Classes, Objects, Inheritance, Polymorphism, Encapsulation, Abstraction), JVM Memory, and Gradle build automation are implemented in SafeCall AI.
-          </div>
-        </div>
-        <div>
-          <a href="SafeCall_AI_Java_Architecture_and_Viva_Report.pdf" target="_blank" className="pdf-download-btn">
-            <span>&#128196;</span> Download Defense Guide (PDF)
-          </a>
-        </div>
-      </div>
-
       {/* Sub-Navigation Bar */}
       <div className="java-subnav-bar">
         <button 
@@ -1671,33 +1648,6 @@ function PipelineVisualizer({ dbLogs, onSimulateToDb }) {
 
   return (
     <div className="pipeline-container">
-      {/* Top Academic Viva Guide Banner */}
-      <div className="pdf-download-card">
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
-            <span style={{ fontSize: '20px' }}>📄</span>
-            <span style={{ fontSize: '16px', fontWeight: '800', color: '#ffffff' }}>
-              Academic Viva Defense Guide &amp; Java Architecture Technical Specification
-            </span>
-            <span className="concept-badge" style={{ background: 'rgba(56, 189, 248, 0.2)', borderColor: '#38bdf8', color: '#38bdf8' }}>
-              PDF AVAILABLE
-            </span>
-          </div>
-          <div style={{ fontSize: '13px', color: '#cbd5e1', lineHeight: '1.5' }}>
-            Comprehensive documentation covering Java OOP principles (Encapsulation, Composition, Polymorphism), Design Patterns (Singleton, Observer, Strategy, Repository), Android Telephony state machine, and the Top 20 Professor Defense Questions.
-          </div>
-        </div>
-        <div>
-          <a 
-            href="SafeCall_AI_Java_Architecture_and_Viva_Report.pdf" 
-            target="_blank" 
-            className="pdf-download-btn"
-          >
-            <span>&#128196;</span> Open Viva Guide (PDF)
-          </a>
-        </div>
-      </div>
-
       {/* Live Backend Telemetry Metrics Bar */}
       <div className="telemetry-grid">
         <div className="telemetry-card">
