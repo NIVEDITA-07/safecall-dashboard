@@ -382,7 +382,7 @@ function evaluateUrgency(profile, recentCount, timeStr, historyTotal, historyMis
   };
 }
 function App() {
-  const [activeTab, setActiveTab] = useState("playground"); // "playground" | "cases" | "code" | "db"
+  const [activeTab, setActiveTab] = useState("java"); // "java" | "playground" | "pipeline" | "cases" | "code" | "db" | "oop"
   const [selectedCaseId, setSelectedCaseId] = useState("case-3");
 
   // State for Playground Form
@@ -508,6 +508,9 @@ function App() {
     className: `nav-tab-btn ${activeTab === "playground" ? "active" : ""}`,
     onClick: () => setActiveTab("playground")
   }, /*#__PURE__*/React.createElement("span", null, "⚙"), " Interactive Simulation Playground"), /*#__PURE__*/React.createElement("button", {
+    className: `nav-tab-btn ${activeTab === "java" ? "active" : ""}`,
+    onClick: () => setActiveTab("java")
+  }, /*#__PURE__*/React.createElement("span", null, "☕"), " Java OOP & Gradle Visualizer"), /*#__PURE__*/React.createElement("button", {
     className: `nav-tab-btn ${activeTab === "oop" ? "active" : ""}`,
     onClick: () => setActiveTab("oop")
   }, /*#__PURE__*/React.createElement("span", null, "🧬"), " OOP Architecture & Object Flow Animation"), /*#__PURE__*/React.createElement("button", {
@@ -1156,7 +1159,748 @@ public class WeightedRuleEngine {
       fontSize: '12px',
       color: '#94a3b8'
     }
-  }, log.exp))))))), activeTab === "oop" && /*#__PURE__*/React.createElement(OopFlowAnimation, null));
+  }, log.exp))))))), activeTab === "java" && /*#__PURE__*/React.createElement(JavaGradleVisualizer, null), activeTab === "oop" && /*#__PURE__*/React.createElement(OopFlowAnimation, null));
+}
+
+// -------------------------------------------------------------
+// Java OOP & Gradle Academic Visualizer Component
+// -------------------------------------------------------------
+function JavaGradleVisualizer() {
+  const [subTab, setSubTab] = useState("pillars"); // "pillars" | "classes" | "gradle" | "threads" | "viva"
+
+  return /*#__PURE__*/React.createElement("div", {
+    className: "java-visualizer-container"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "concept-hero-card"
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '10px',
+      marginBottom: '6px'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: '24px'
+    }
+  }, "☕"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: '18px',
+      fontWeight: '800',
+      color: '#ffffff'
+    }
+  }, "Java OOP Architecture & Gradle Build System Deep Dive"), /*#__PURE__*/React.createElement("span", {
+    className: "concept-badge",
+    style: {
+      background: 'rgba(234, 179, 8, 0.15)',
+      borderColor: '#eab308',
+      color: '#facc15'
+    }
+  }, "ACADEMIC PRESENTATION GUIDE")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '13px',
+      color: '#cbd5e1',
+      lineHeight: '1.5'
+    }
+  }, "A comprehensive, teacher-ready breakdown of how Object-Oriented Programming (Classes, Objects, Inheritance, Polymorphism, Encapsulation, Abstraction), JVM Memory, and Gradle build automation are implemented in SafeCall AI.")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("a", {
+    href: "SafeCall_AI_Java_Architecture_and_Viva_Report.pdf",
+    target: "_blank",
+    className: "pdf-download-btn"
+  }, /*#__PURE__*/React.createElement("span", null, "📄"), " Download Defense Guide (PDF)"))), /*#__PURE__*/React.createElement("div", {
+    className: "java-subnav-bar"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: `java-subnav-btn ${subTab === "pillars" ? "active" : ""}`,
+    onClick: () => setSubTab("pillars")
+  }, /*#__PURE__*/React.createElement("span", null, "🏛️"), " 1. The 4 OOP Pillars"), /*#__PURE__*/React.createElement("button", {
+    className: `java-subnav-btn ${subTab === "classes" ? "active" : ""}`,
+    onClick: () => setSubTab("classes")
+  }, /*#__PURE__*/React.createElement("span", null, "📦"), " 2. Classes, Objects & Memory"), /*#__PURE__*/React.createElement("button", {
+    className: `java-subnav-btn ${subTab === "gradle" ? "active" : ""}`,
+    onClick: () => setSubTab("gradle")
+  }, /*#__PURE__*/React.createElement("span", null, "🐘"), " 3. What is Gradle? Build Pipeline"), /*#__PURE__*/React.createElement("button", {
+    className: `java-subnav-btn ${subTab === "threads" ? "active" : ""}`,
+    onClick: () => setSubTab("threads")
+  }, /*#__PURE__*/React.createElement("span", null, "🧵"), " 4. Concurrency & Thread Safety"), /*#__PURE__*/React.createElement("button", {
+    className: `java-subnav-btn ${subTab === "viva" ? "active" : ""}`,
+    onClick: () => setSubTab("viva")
+  }, /*#__PURE__*/React.createElement("span", null, "🎓"), " 5. Teacher's Viva Defense Q&A")), subTab === "pillars" && /*#__PURE__*/React.createElement("div", {
+    className: "oop-pillars-grid"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "oop-pillar-card"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "pillar-header"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "pillar-badge"
+  }, "Pillar 1"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: '20px'
+    }
+  }, "🔒")), /*#__PURE__*/React.createElement("div", {
+    className: "pillar-title"
+  }, "Encapsulation"), /*#__PURE__*/React.createElement("div", {
+    className: "pillar-class-target"
+  }, "Target: CallRecord.java & CallerProfile.java"), /*#__PURE__*/React.createElement("div", {
+    className: "pillar-desc"
+  }, "Data hiding & state integrity. All fields (e.g. ", /*#__PURE__*/React.createElement("code", null, "phoneNumber"), ", ", /*#__PURE__*/React.createElement("code", null, "urgencyScore"), ") are declared ", /*#__PURE__*/React.createElement("code", null, "private final"), " and accessed solely through validated public getters. External callers cannot directly mutate urgency scores or forge call timestamps."), /*#__PURE__*/React.createElement("div", {
+    className: "pillar-code-box"
+  }, `public class CallRecord {
+    private final String phoneNumber; // Hidden state
+    private final long timestamp;
+    private final int urgencyScore;
+
+    // Public getter with validation
+    public int getUrgencyScore() {
+        return Math.max(0, Math.min(100, urgencyScore));
+    }
+}`)), /*#__PURE__*/React.createElement("div", {
+    className: "oop-pillar-card"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "pillar-header"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "pillar-badge"
+  }, "Pillar 2"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: '20px'
+    }
+  }, "🧬")), /*#__PURE__*/React.createElement("div", {
+    className: "pillar-title"
+  }, "Inheritance & Framework Extension"), /*#__PURE__*/React.createElement("div", {
+    className: "pillar-class-target"
+  }, "Target: DatabaseHelper.java & SafeCallPhoneStateReceiver.java"), /*#__PURE__*/React.createElement("div", {
+    className: "pillar-desc"
+  }, "Extending foundational Android OS base classes. ", /*#__PURE__*/React.createElement("code", null, "DatabaseHelper extends SQLiteOpenHelper"), " inherits database lifecycle management, schema migration, and transaction locking. ", /*#__PURE__*/React.createElement("code", null, "SafeCallPhoneStateReceiver extends BroadcastReceiver"), " hooks into Android OS telephony events."), /*#__PURE__*/React.createElement("div", {
+    className: "pillar-code-box"
+  }, `// Inherits SQLite schema lifecycle
+public class DatabaseHelper extends SQLiteOpenHelper {
+    public DatabaseHelper(Context ctx) {
+        super(ctx, "safecall.db", null, 1);
+    }
+    @Override
+    public void onCreate(SQLiteDatabase db) {
+        db.execSQL(CREATE_CALL_HISTORY_TABLE);
+    }
+}`)), /*#__PURE__*/React.createElement("div", {
+    className: "oop-pillar-card"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "pillar-header"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "pillar-badge"
+  }, "Pillar 3"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: '20px'
+    }
+  }, "🎭")), /*#__PURE__*/React.createElement("div", {
+    className: "pillar-title"
+  }, "Polymorphism"), /*#__PURE__*/React.createElement("div", {
+    className: "pillar-class-target"
+  }, "Target: CallerProfile.Priority & UrgencyResult.Level"), /*#__PURE__*/React.createElement("div", {
+    className: "pillar-desc"
+  }, "Dynamic behavior and type safety. Enums exhibit compile-time polymorphism with custom weight behaviors. The engine treats different caller categories (EMERGENCY, TRUSTED, NORMAL) polymorphically through a unified priority interface."), /*#__PURE__*/React.createElement("div", {
+    className: "pillar-code-box"
+  }, `public enum Priority {
+    NORMAL(0),
+    TRUSTED(15),
+    EMERGENCY(25);
+
+    private final int weight;
+    Priority(int weight) { this.weight = weight; }
+    public int getWeight() { return weight; }
+}`)), /*#__PURE__*/React.createElement("div", {
+    className: "oop-pillar-card"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "pillar-header"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "pillar-badge"
+  }, "Pillar 4"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: '20px'
+    }
+  }, "🧩")), /*#__PURE__*/React.createElement("div", {
+    className: "pillar-title"
+  }, "Abstraction"), /*#__PURE__*/React.createElement("div", {
+    className: "pillar-class-target"
+  }, "Target: CallEventProcessor.java & DatabaseHelper"), /*#__PURE__*/React.createElement("div", {
+    className: "pillar-desc"
+  }, "Hiding low-level implementation complexity. ", /*#__PURE__*/React.createElement("code", null, "CallEventProcessor"), " abstracts Android's asynchronous execution queue, SQLite C-cursor mechanics, and HTTP REST networking into one clean high-level method: ", /*#__PURE__*/React.createElement("code", null, "processIncomingCallEvent()"), "."), /*#__PURE__*/React.createElement("div", {
+    className: "pillar-code-box"
+  }, `// High-level abstraction hides 100+ lines of SQL & networking
+public class CallEventProcessor {
+    public void processIncomingCallEvent(String phone, long time) {
+        CallContext context = buildContext(phone, time); // Abstracted SQL
+        UrgencyResult result = engine.evaluate(context); // Pure logic
+        if (result.getScore() >= 80) dispatchAlert(result); // Network
+    }
+}`))), subTab === "classes" && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '16px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "glass-panel",
+    style: {
+      padding: '20px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "panel-header",
+    style: {
+      marginBottom: '14px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "panel-title"
+  }, /*#__PURE__*/React.createElement("span", null, "📦"), " Core Class Hierarchy & Object Relationships in SafeCall AI"), /*#__PURE__*/React.createElement("span", {
+    className: "panel-subtitle"
+  }, "Object Composition (Has-A) vs Inheritance (Is-A)")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+      gap: '14px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: 'rgba(15,23,42,0.7)',
+      border: '1px solid rgba(255,255,255,0.08)',
+      borderRadius: '10px',
+      padding: '14px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: '#38bdf8',
+      fontWeight: '800',
+      fontFamily: 'var(--font-mono)',
+      fontSize: '13px'
+    }
+  }, "CallerProfile.java"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '11px',
+      color: 'var(--text-muted)',
+      marginBottom: '8px'
+    }
+  }, "Entity Object (Model)"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '12px',
+      color: '#cbd5e1'
+    }
+  }, "Encapsulates contact metadata: ", /*#__PURE__*/React.createElement("code", null, "id"), ", ", /*#__PURE__*/React.createElement("code", null, "name"), ", ", /*#__PURE__*/React.createElement("code", null, "phoneNumber"), ", ", /*#__PURE__*/React.createElement("code", null, "relationship"), ", and ", /*#__PURE__*/React.createElement("code", null, "Priority"), " enum.")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: 'rgba(15,23,42,0.7)',
+      border: '1px solid rgba(255,255,255,0.08)',
+      borderRadius: '10px',
+      padding: '14px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: '#38bdf8',
+      fontWeight: '800',
+      fontFamily: 'var(--font-mono)',
+      fontSize: '13px'
+    }
+  }, "CallRecord.java"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '11px',
+      color: 'var(--text-muted)',
+      marginBottom: '8px'
+    }
+  }, "Entity Object (Model)"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '12px',
+      color: '#cbd5e1'
+    }
+  }, "Represents a single telephony call event: ", /*#__PURE__*/React.createElement("code", null, "phoneNumber"), ", ", /*#__PURE__*/React.createElement("code", null, "timestamp"), ", ", /*#__PURE__*/React.createElement("code", null, "durationSeconds"), ", ", /*#__PURE__*/React.createElement("code", null, "urgencyScore"), ".")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: 'rgba(15,23,42,0.7)',
+      border: '1px solid rgba(255,255,255,0.08)',
+      borderRadius: '10px',
+      padding: '14px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: '#a78bfa',
+      fontWeight: '800',
+      fontFamily: 'var(--font-mono)',
+      fontSize: '13px'
+    }
+  }, "CallContext.java"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '11px',
+      color: 'var(--text-muted)',
+      marginBottom: '8px'
+    }
+  }, "Composite Container (Has-A)"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '12px',
+      color: '#cbd5e1'
+    }
+  }, "Aggregates references to ", /*#__PURE__*/React.createElement("code", null, "CallerProfile"), ", ", /*#__PURE__*/React.createElement("code", null, "List<CallRecord> recentCalls"), ", and ", /*#__PURE__*/React.createElement("code", null, "List<CallRecord> history"), " for evaluation.")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: 'rgba(15,23,42,0.7)',
+      border: '1px solid rgba(255,255,255,0.08)',
+      borderRadius: '10px',
+      padding: '14px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: '#34d399',
+      fontWeight: '800',
+      fontFamily: 'var(--font-mono)',
+      fontSize: '13px'
+    }
+  }, "WeightedRuleEngine.java"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '11px',
+      color: 'var(--text-muted)',
+      marginBottom: '8px'
+    }
+  }, "Stateless Domain Service"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '12px',
+      color: '#cbd5e1'
+    }
+  }, "Pure deterministic evaluation logic. Contains no mutable state; produces an immutable ", /*#__PURE__*/React.createElement("code", null, "UrgencyResult"), " given a ", /*#__PURE__*/React.createElement("code", null, "CallContext"), ".")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: 'rgba(15,23,42,0.7)',
+      border: '1px solid rgba(255,255,255,0.08)',
+      borderRadius: '10px',
+      padding: '14px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: '#f59e0b',
+      fontWeight: '800',
+      fontFamily: 'var(--font-mono)',
+      fontSize: '13px'
+    }
+  }, "UrgencyResult.java"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '11px',
+      color: 'var(--text-muted)',
+      marginBottom: '8px'
+    }
+  }, "Value Object / DTO"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '12px',
+      color: '#cbd5e1'
+    }
+  }, "Immutable Data Transfer Object holding the final score ($0–100$), classification level (", /*#__PURE__*/React.createElement("code", null, "LOW"), ", ", /*#__PURE__*/React.createElement("code", null, "MEDIUM"), ", ", /*#__PURE__*/React.createElement("code", null, "HIGH"), "), and explanation.")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: 'rgba(15,23,42,0.7)',
+      border: '1px solid rgba(255,255,255,0.08)',
+      borderRadius: '10px',
+      padding: '14px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: '#ef4444',
+      fontWeight: '800',
+      fontFamily: 'var(--font-mono)',
+      fontSize: '13px'
+    }
+  }, "DatabaseHelper.java"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '11px',
+      color: 'var(--text-muted)',
+      marginBottom: '8px'
+    }
+  }, "Thread-Safe Singleton DAO"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '12px',
+      color: '#cbd5e1'
+    }
+  }, "Encapsulates all SQLite persistence. Implements the Singleton pattern to eliminate SQLite database locks across threads.")))), /*#__PURE__*/React.createElement("div", {
+    className: "glass-panel",
+    style: {
+      padding: '20px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "panel-header",
+    style: {
+      marginBottom: '14px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "panel-title"
+  }, /*#__PURE__*/React.createElement("span", null, "🧠"), " JVM Memory Architecture: Stack vs Heap in SafeCall"), /*#__PURE__*/React.createElement("span", {
+    className: "panel-subtitle"
+  }, "How Java Manages Objects During a Real Phone Call")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: '16px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: '#060a14',
+      border: '1px solid rgba(56, 189, 248, 0.3)',
+      borderRadius: '10px',
+      padding: '16px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: '#38bdf8',
+      fontWeight: '800',
+      marginBottom: '8px',
+      fontSize: '14px'
+    }
+  }, "JVM STACK MEMORY (Thread-Specific)"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '12px',
+      color: '#cbd5e1',
+      lineHeight: '1.5'
+    }
+  }, "• ", /*#__PURE__*/React.createElement("b", null, "Method Execution Frames:"), " Pushed onto stack when ", /*#__PURE__*/React.createElement("code", null, "evaluate(context)"), " is called.", /*#__PURE__*/React.createElement("br", null), "• ", /*#__PURE__*/React.createElement("b", null, "Primitive Local Variables:"), " ", /*#__PURE__*/React.createElement("code", null, "int score = 0;"), ", ", /*#__PURE__*/React.createElement("code", null, "long currentTime = 1728929340L;"), " stored directly on the stack.", /*#__PURE__*/React.createElement("br", null), "• ", /*#__PURE__*/React.createElement("b", null, "Object References:"), " Pointers holding 32/64-bit addresses pointing to Heap objects (e.g. ", /*#__PURE__*/React.createElement("code", null, "profileRef = 0x7A1"), ").")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: '#060a14',
+      border: '1px solid rgba(167, 139, 250, 0.3)',
+      borderRadius: '10px',
+      padding: '16px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: '#a78bfa',
+      fontWeight: '800',
+      marginBottom: '8px',
+      fontSize: '14px'
+    }
+  }, "JVM HEAP MEMORY (Shared Across Threads)"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '12px',
+      color: '#cbd5e1',
+      lineHeight: '1.5'
+    }
+  }, "• ", /*#__PURE__*/React.createElement("b", null, "Object Instances:"), " ", /*#__PURE__*/React.createElement("code", null, "new CallerProfile(...)"), " allocated on heap at ", /*#__PURE__*/React.createElement("code", null, "@0x7A1"), ".", /*#__PURE__*/React.createElement("br", null), "• ", /*#__PURE__*/React.createElement("b", null, "Collections:"), " ", /*#__PURE__*/React.createElement("code", null, "ArrayList<CallRecord>"), " storing recent & historical call objects.", /*#__PURE__*/React.createElement("br", null), "• ", /*#__PURE__*/React.createElement("b", null, "Garbage Collection:"), " Short-lived context objects are automatically collected by Android's ART garbage collector after evaluation."))))), subTab === "gradle" && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '16px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "glass-panel",
+    style: {
+      padding: '20px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '16px',
+      fontWeight: '800',
+      color: '#ffffff',
+      marginBottom: '6px'
+    }
+  }, "What is Gradle and Why Does SafeCall AI Use It?"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '13px',
+      color: '#cbd5e1',
+      lineHeight: '1.55'
+    }
+  }, /*#__PURE__*/React.createElement("b", null, "Gradle"), " is an enterprise build automation tool designed for Java and Android. Instead of manually invoking ", /*#__PURE__*/React.createElement("code", null, "javac"), ", linking dozens of JAR files, generating resource IDs, and compiling XML, Gradle automates the entire lifecycle: resolving remote dependencies from Google Maven, compiling Java source to bytecode, converting bytecode to Android Dalvik Executable (", /*#__PURE__*/React.createElement("code", null, ".dex"), "), and packaging everything into an installable ", /*#__PURE__*/React.createElement("code", null, "app-debug.apk"), "."), /*#__PURE__*/React.createElement("div", {
+    className: "gradle-pipeline-grid"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "gradle-step-card"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '20px',
+      marginBottom: '4px'
+    }
+  }, "📝"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: '700',
+      color: '#38bdf8',
+      fontSize: '12px'
+    }
+  }, "1. Java Source"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '11px',
+      color: 'var(--text-muted)'
+    }
+  }, ".java files in src/main/java")), /*#__PURE__*/React.createElement("div", {
+    className: "gradle-step-card"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '20px',
+      marginBottom: '4px'
+    }
+  }, "⚙️"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: '700',
+      color: '#38bdf8',
+      fontSize: '12px'
+    }
+  }, "2. Gradle javac"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '11px',
+      color: 'var(--text-muted)'
+    }
+  }, "Compiles to JVM .class bytecode")), /*#__PURE__*/React.createElement("div", {
+    className: "gradle-step-card"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '20px',
+      marginBottom: '4px'
+    }
+  }, "🤖"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: '700',
+      color: '#38bdf8',
+      fontSize: '12px'
+    }
+  }, "3. D8 / R8 Dexer"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '11px',
+      color: 'var(--text-muted)'
+    }
+  }, "Converts .class to Android classes.dex")), /*#__PURE__*/React.createElement("div", {
+    className: "gradle-step-card"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '20px',
+      marginBottom: '4px'
+    }
+  }, "📦"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: '700',
+      color: '#38bdf8',
+      fontSize: '12px'
+    }
+  }, "4. AAPT2 Resources"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '11px',
+      color: 'var(--text-muted)'
+    }
+  }, "Compiles AndroidManifest & assets")), /*#__PURE__*/React.createElement("div", {
+    className: "gradle-step-card"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '20px',
+      marginBottom: '4px'
+    }
+  }, "📱"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: '700',
+      color: '#34d399',
+      fontSize: '12px'
+    }
+  }, "5. app-debug.apk"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '11px',
+      color: 'var(--text-muted)'
+    }
+  }, "Signed, installable Android APK")))), /*#__PURE__*/React.createElement("div", {
+    className: "gradle-files-container"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "gradle-file-card"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "gradle-file-title"
+  }, "1. settings.gradle"), /*#__PURE__*/React.createElement("div", {
+    className: "gradle-file-role"
+  }, "Project Structure & Module Discovery"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '12px',
+      color: '#94a3b8',
+      marginBottom: '10px'
+    }
+  }, "Tells Gradle which submodules exist in this workspace. SafeCall includes both the Android application and the ZK dashboard module."), /*#__PURE__*/React.createElement("div", {
+    className: "gradle-file-code"
+  }, `pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+rootProject.name = "safecall-java"
+include ':app'
+include ':zk-dashboard'`)), /*#__PURE__*/React.createElement("div", {
+    className: "gradle-file-card"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "gradle-file-title"
+  }, "2. Root build.gradle"), /*#__PURE__*/React.createElement("div", {
+    className: "gradle-file-role"
+  }, "Project-Wide Plugins & Clean Task"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '12px',
+      color: '#94a3b8',
+      marginBottom: '10px'
+    }
+  }, "Configures the Android Gradle Plugin (AGP) version across all sub-projects and declares global repository mirrors."), /*#__PURE__*/React.createElement("div", {
+    className: "gradle-file-code"
+  }, `plugins {
+    id 'com.android.application' 
+        version '8.2.2' apply false
+    id 'com.android.library' 
+        version '8.2.2' apply false
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}`)), /*#__PURE__*/React.createElement("div", {
+    className: "gradle-file-card"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "gradle-file-title"
+  }, "3. app/build.gradle"), /*#__PURE__*/React.createElement("div", {
+    className: "gradle-file-role"
+  }, "App Config, SDK Targets & Dependencies"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '12px',
+      color: '#94a3b8',
+      marginBottom: '10px'
+    }
+  }, "Specifies Android SDK 34 (Android 14), minimum SDK 26 (Android 8.0), and external libraries like JUnit 4.13.2."), /*#__PURE__*/React.createElement("div", {
+    className: "gradle-file-code"
+  }, `android {
+    namespace 'com.safecall'
+    compileSdk 34 // Android 14
+
+    defaultConfig {
+        applicationId "com.safecall"
+        minSdk 26    // Android 8.0+
+        targetSdk 34
+        versionCode 1
+    }
+}
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    testImplementation 'junit:junit:4.13.2'
+}`)))), subTab === "threads" && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '16px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "glass-panel",
+    style: {
+      padding: '20px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "panel-header",
+    style: {
+      marginBottom: '14px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "panel-title"
+  }, /*#__PURE__*/React.createElement("span", null, "🧵"), " Multithreading & Concurrency in SafeCall AI"), /*#__PURE__*/React.createElement("span", {
+    className: "panel-subtitle"
+  }, "Why Database & Network Operations Cannot Run on the Main UI Thread")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '13px',
+      color: '#cbd5e1',
+      lineHeight: '1.55',
+      marginBottom: '16px'
+    }
+  }, "Android strictly enforces that the ", /*#__PURE__*/React.createElement("b", null, "Main Thread (UI Thread)"), " is reserved solely for drawing frames at 60 FPS. If an application attempts SQLite queries or HTTP network calls on the main thread, the OS immediately crashes with a ", /*#__PURE__*/React.createElement("code", null, "NetworkOnMainThreadException"), " or freezes with an ", /*#__PURE__*/React.createElement("b", null, "ANR (Application Not Responding)"), " dialog. SafeCall AI uses Java's ", /*#__PURE__*/React.createElement("code", null, "ExecutorService"), " to execute all telephony evaluations in a background worker thread."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: '16px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: '#060a14',
+      border: '1px solid rgba(239, 68, 68, 0.3)',
+      borderRadius: '10px',
+      padding: '16px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: '#ef4444',
+      fontWeight: '800',
+      marginBottom: '8px',
+      fontSize: '13px'
+    }
+  }, "1. Main UI Thread (Ringing Screen)"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '12px',
+      color: '#cbd5e1',
+      lineHeight: '1.5'
+    }
+  }, "• Handles user taps, answer button, and caller name rendering.", /*#__PURE__*/React.createElement("br", null), "• Must respond in < 16 milliseconds per frame.", /*#__PURE__*/React.createElement("br", null), "• ", /*#__PURE__*/React.createElement("b", null, "Never blocks"), " waiting for SQLite or backend HTTP responses.")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: '#060a14',
+      border: '1px solid rgba(52, 211, 153, 0.3)',
+      borderRadius: '10px',
+      padding: '16px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: '#34d399',
+      fontWeight: '800',
+      marginBottom: '8px',
+      fontSize: '13px'
+    }
+  }, "2. Background Worker Thread (ExecutorService)"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '12px',
+      color: '#cbd5e1',
+      lineHeight: '1.5'
+    }
+  }, "• ", /*#__PURE__*/React.createElement("code", null, "Executors.newSingleThreadExecutor()"), " runs sequential call events.", /*#__PURE__*/React.createElement("br", null), "• Queries SQLite table ", /*#__PURE__*/React.createElement("code", null, "call_history"), " for prior redials.", /*#__PURE__*/React.createElement("br", null), "• Executes ", /*#__PURE__*/React.createElement("code", null, "WeightedRuleEngine.evaluate()"), " in ~4 ms.", /*#__PURE__*/React.createElement("br", null), "• Dispatches HTTP POST to Node.js backend when score ≥ 80."))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: '16px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '12px',
+      color: '#38bdf8',
+      fontWeight: '700',
+      marginBottom: '6px'
+    }
+  }, "Code Implementation in CallEventProcessor.java:"), /*#__PURE__*/React.createElement("pre", {
+    className: "code-block",
+    style: {
+      margin: 0,
+      padding: '12px'
+    }
+  }, /*#__PURE__*/React.createElement("code", null, `// Thread Pool prevents UI freeze
+private final ExecutorService workerExecutor = Executors.newSingleThreadExecutor();
+
+public void onCallMissed(String phoneNumber, long timestamp) {
+    workerExecutor.execute(() -> {
+        // Runs on Background Worker Thread
+        CallContext context = repository.buildContext(phoneNumber, timestamp);
+        UrgencyResult result = ruleEngine.evaluate(context);
+        repository.insertCallRecord(new CallRecord(phoneNumber, timestamp, result.getScore()));
+
+        if (result.getScore() >= 80) {
+            httpAlertDispatcher.sendBreakthroughAlert(result); // Safe from NetworkOnMainThreadException
+        }
+    });
+}`))))), subTab === "viva" && /*#__PURE__*/React.createElement("div", {
+    className: "viva-card-list"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "viva-card"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "viva-q"
+  }, /*#__PURE__*/React.createElement("span", null, "❓"), " 1. \"How did you use Object-Oriented Programming (OOP) in this project?\""), /*#__PURE__*/React.createElement("div", {
+    className: "viva-a"
+  }, "\"We applied all 4 pillars of OOP: ", /*#__PURE__*/React.createElement("b", null, "Encapsulation"), " in ", /*#__PURE__*/React.createElement("code", null, "CallRecord"), " and ", /*#__PURE__*/React.createElement("code", null, "CallerProfile"), " with private immutable fields; ", /*#__PURE__*/React.createElement("b", null, "Inheritance"), " by extending Android's ", /*#__PURE__*/React.createElement("code", null, "BroadcastReceiver"), " and ", /*#__PURE__*/React.createElement("code", null, "SQLiteOpenHelper"), "; ", /*#__PURE__*/React.createElement("b", null, "Polymorphism"), " via enum-driven priority weights and score level dispatch; and ", /*#__PURE__*/React.createElement("b", null, "Abstraction"), " by isolating the Java Rule Engine from SQLite and Android Telephony hardware through ", /*#__PURE__*/React.createElement("code", null, "CallEventProcessor"), ".\"")), /*#__PURE__*/React.createElement("div", {
+    className: "viva-card"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "viva-q"
+  }, /*#__PURE__*/React.createElement("span", null, "❓"), " 2. \"What is Gradle, and what happens when you build the app?\""), /*#__PURE__*/React.createElement("div", {
+    className: "viva-a"
+  }, "\"", /*#__PURE__*/React.createElement("b", null, "Gradle"), " is our build automation tool. When we run ", /*#__PURE__*/React.createElement("code", null, "./gradlew assembleDebug"), ", Gradle resolves dependencies like JUnit, compiles our ", /*#__PURE__*/React.createElement("code", null, ".java"), " source files into JVM ", /*#__PURE__*/React.createElement("code", null, ".class"), " bytecode using ", /*#__PURE__*/React.createElement("code", null, "javac"), ", translates the bytecode into Dalvik/ART executable format (", /*#__PURE__*/React.createElement("code", null, "classes.dex"), ") using the ", /*#__PURE__*/React.createElement("b", null, "D8 dexer"), ", compiles Android XML layouts with ", /*#__PURE__*/React.createElement("b", null, "AAPT2"), ", and packages everything into an installable ", /*#__PURE__*/React.createElement("code", null, "app-debug.apk"), ".\"")), /*#__PURE__*/React.createElement("div", {
+    className: "viva-card"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "viva-q"
+  }, /*#__PURE__*/React.createElement("span", null, "❓"), " 3. \"Why is DatabaseHelper implemented as a Singleton?\""), /*#__PURE__*/React.createElement("div", {
+    className: "viva-a"
+  }, "\"SQLite in Android uses file-level locking. If multiple threads instantiate multiple ", /*#__PURE__*/React.createElement("code", null, "SQLiteOpenHelper"), " instances, concurrent writes cause ", /*#__PURE__*/React.createElement("code", null, "SQLiteDatabaseLockedException"), ". The ", /*#__PURE__*/React.createElement("b", null, "Singleton pattern"), " with synchronized double-checked locking guarantees only one database helper instance manages connection pooling across all background threads.\"")), /*#__PURE__*/React.createElement("div", {
+    className: "viva-card"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "viva-q"
+  }, /*#__PURE__*/React.createElement("span", null, "❓"), " 4. \"How does the system distinguish an answered call from a missed call?\""), /*#__PURE__*/React.createElement("div", {
+    className: "viva-a"
+  }, "\"We implemented a ", /*#__PURE__*/React.createElement("b", null, "State Pattern machine"), " in ", /*#__PURE__*/React.createElement("code", null, "SafeCallPhoneStateReceiver.java"), ". The telephony state sequence for an answered call is ", /*#__PURE__*/React.createElement("code", null, "IDLE → RINGING → OFFHOOK → IDLE"), ". For a genuine missed call, the sequence skips ", /*#__PURE__*/React.createElement("code", null, "OFFHOOK"), " and transitions directly ", /*#__PURE__*/React.createElement("code", null, "IDLE → RINGING → IDLE"), ".\"")), /*#__PURE__*/React.createElement("div", {
+    className: "viva-card"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "viva-q"
+  }, /*#__PURE__*/React.createElement("span", null, "❓"), " 5. \"What prevents duplicate alerts if a contact redials 3 times in 10 seconds?\""), /*#__PURE__*/React.createElement("div", {
+    className: "viva-a"
+  }, "\"Two layers of protection: (1) Client-side ", /*#__PURE__*/React.createElement("b", null, "idempotency keys"), " generated from the caller number and timestamp hash, and (2) Server-side ", /*#__PURE__*/React.createElement("b", null, "30-second cooldown window"), " in ", /*#__PURE__*/React.createElement("code", null, "server.js"), " that suppresses duplicate alerts from the same contact within 30 seconds to prevent caregiver alert fatigue.\"")), /*#__PURE__*/React.createElement("div", {
+    className: "viva-card"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "viva-q"
+  }, /*#__PURE__*/React.createElement("span", null, "❓"), " 6. \"Why does the Java rule engine run off the Main UI thread?\""), /*#__PURE__*/React.createElement("div", {
+    className: "viva-a"
+  }, "\"Android prohibits database queries and HTTP network requests on the Main Thread (which causes ", /*#__PURE__*/React.createElement("code", null, "NetworkOnMainThreadException"), " or ANRs). We offload all context gathering, urgency scoring, and FCM alert dispatching to an ", /*#__PURE__*/React.createElement("code", null, "ExecutorService"), " background worker thread.\""))));
 }
 
 // -------------------------------------------------------------

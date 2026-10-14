@@ -255,7 +255,7 @@ function evaluateUrgency(profile, recentCount, timeStr, historyTotal, historyMis
 }
 
 function App() {
-  const [activeTab, setActiveTab] = useState("playground"); // "playground" | "cases" | "code" | "db"
+  const [activeTab, setActiveTab] = useState("java"); // "java" | "playground" | "pipeline" | "cases" | "code" | "db" | "oop"
   const [selectedCaseId, setSelectedCaseId] = useState("case-3");
 
   // State for Playground Form
@@ -365,6 +365,12 @@ function App() {
           onClick={() => setActiveTab("playground")}
         >
           <span>&#9881;</span> Interactive Simulation Playground
+        </button>
+        <button 
+          className={`nav-tab-btn ${activeTab === "java" ? "active" : ""}`}
+          onClick={() => setActiveTab("java")}
+        >
+          <span>☕</span> Java OOP &amp; Gradle Visualizer
         </button>
         <button 
           className={`nav-tab-btn ${activeTab === "oop" ? "active" : ""}`}
@@ -1022,8 +1028,483 @@ public class WeightedRuleEngine {
         </div>
       )}
 
+      {/* VIEW: Java OOP & Gradle Academic Visualizer */}
+      {activeTab === "java" && <JavaGradleVisualizer />}
+
       {/* VIEW: OOP Architecture & Object Flow Animation */}
       {activeTab === "oop" && <OopFlowAnimation />}
+    </div>
+  );
+}
+
+// -------------------------------------------------------------
+// Java OOP & Gradle Academic Visualizer Component
+// -------------------------------------------------------------
+function JavaGradleVisualizer() {
+  const [subTab, setSubTab] = useState("pillars"); // "pillars" | "classes" | "gradle" | "threads" | "viva"
+
+  return (
+    <div className="java-visualizer-container">
+      {/* Hero Banner */}
+      <div className="concept-hero-card">
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+            <span style={{ fontSize: '24px' }}>☕</span>
+            <span style={{ fontSize: '18px', fontWeight: '800', color: '#ffffff' }}>
+              Java OOP Architecture &amp; Gradle Build System Deep Dive
+            </span>
+            <span className="concept-badge" style={{ background: 'rgba(234, 179, 8, 0.15)', borderColor: '#eab308', color: '#facc15' }}>
+              ACADEMIC PRESENTATION GUIDE
+            </span>
+          </div>
+          <div style={{ fontSize: '13px', color: '#cbd5e1', lineHeight: '1.5' }}>
+            A comprehensive, teacher-ready breakdown of how Object-Oriented Programming (Classes, Objects, Inheritance, Polymorphism, Encapsulation, Abstraction), JVM Memory, and Gradle build automation are implemented in SafeCall AI.
+          </div>
+        </div>
+        <div>
+          <a href="SafeCall_AI_Java_Architecture_and_Viva_Report.pdf" target="_blank" className="pdf-download-btn">
+            <span>&#128196;</span> Download Defense Guide (PDF)
+          </a>
+        </div>
+      </div>
+
+      {/* Sub-Navigation Bar */}
+      <div className="java-subnav-bar">
+        <button 
+          className={`java-subnav-btn ${subTab === "pillars" ? "active" : ""}`}
+          onClick={() => setSubTab("pillars")}
+        >
+          <span>🏛️</span> 1. The 4 OOP Pillars
+        </button>
+        <button 
+          className={`java-subnav-btn ${subTab === "classes" ? "active" : ""}`}
+          onClick={() => setSubTab("classes")}
+        >
+          <span>📦</span> 2. Classes, Objects &amp; Memory
+        </button>
+        <button 
+          className={`java-subnav-btn ${subTab === "gradle" ? "active" : ""}`}
+          onClick={() => setSubTab("gradle")}
+        >
+          <span>🐘</span> 3. What is Gradle? Build Pipeline
+        </button>
+        <button 
+          className={`java-subnav-btn ${subTab === "threads" ? "active" : ""}`}
+          onClick={() => setSubTab("threads")}
+        >
+          <span>🧵</span> 4. Concurrency &amp; Thread Safety
+        </button>
+        <button 
+          className={`java-subnav-btn ${subTab === "viva" ? "active" : ""}`}
+          onClick={() => setSubTab("viva")}
+        >
+          <span>🎓</span> 5. Teacher's Viva Defense Q&amp;A
+        </button>
+      </div>
+
+      {/* SUB-VIEW 1: 4 OOP Pillars */}
+      {subTab === "pillars" && (
+        <div className="oop-pillars-grid">
+          {/* Pillar 1: Encapsulation */}
+          <div className="oop-pillar-card">
+            <div className="pillar-header">
+              <span className="pillar-badge">Pillar 1</span>
+              <span style={{ fontSize: '20px' }}>🔒</span>
+            </div>
+            <div className="pillar-title">Encapsulation</div>
+            <div className="pillar-class-target">Target: CallRecord.java &amp; CallerProfile.java</div>
+            <div className="pillar-desc">
+              Data hiding &amp; state integrity. All fields (e.g. <code>phoneNumber</code>, <code>urgencyScore</code>) are declared <code>private final</code> and accessed solely through validated public getters. External callers cannot directly mutate urgency scores or forge call timestamps.
+            </div>
+            <div className="pillar-code-box">{`public class CallRecord {
+    private final String phoneNumber; // Hidden state
+    private final long timestamp;
+    private final int urgencyScore;
+
+    // Public getter with validation
+    public int getUrgencyScore() {
+        return Math.max(0, Math.min(100, urgencyScore));
+    }
+}`}</div>
+          </div>
+
+          {/* Pillar 2: Inheritance */}
+          <div className="oop-pillar-card">
+            <div className="pillar-header">
+              <span className="pillar-badge">Pillar 2</span>
+              <span style={{ fontSize: '20px' }}>🧬</span>
+            </div>
+            <div className="pillar-title">Inheritance &amp; Framework Extension</div>
+            <div className="pillar-class-target">Target: DatabaseHelper.java &amp; SafeCallPhoneStateReceiver.java</div>
+            <div className="pillar-desc">
+              Extending foundational Android OS base classes. <code>DatabaseHelper extends SQLiteOpenHelper</code> inherits database lifecycle management, schema migration, and transaction locking. <code>SafeCallPhoneStateReceiver extends BroadcastReceiver</code> hooks into Android OS telephony events.
+            </div>
+            <div className="pillar-code-box">{`// Inherits SQLite schema lifecycle
+public class DatabaseHelper extends SQLiteOpenHelper {
+    public DatabaseHelper(Context ctx) {
+        super(ctx, "safecall.db", null, 1);
+    }
+    @Override
+    public void onCreate(SQLiteDatabase db) {
+        db.execSQL(CREATE_CALL_HISTORY_TABLE);
+    }
+}`}</div>
+          </div>
+
+          {/* Pillar 3: Polymorphism */}
+          <div className="oop-pillar-card">
+            <div className="pillar-header">
+              <span className="pillar-badge">Pillar 3</span>
+              <span style={{ fontSize: '20px' }}>🎭</span>
+            </div>
+            <div className="pillar-title">Polymorphism</div>
+            <div className="pillar-class-target">Target: CallerProfile.Priority &amp; UrgencyResult.Level</div>
+            <div className="pillar-desc">
+              Dynamic behavior and type safety. Enums exhibit compile-time polymorphism with custom weight behaviors. The engine treats different caller categories (EMERGENCY, TRUSTED, NORMAL) polymorphically through a unified priority interface.
+            </div>
+            <div className="pillar-code-box">{`public enum Priority {
+    NORMAL(0),
+    TRUSTED(15),
+    EMERGENCY(25);
+
+    private final int weight;
+    Priority(int weight) { this.weight = weight; }
+    public int getWeight() { return weight; }
+}`}</div>
+          </div>
+
+          {/* Pillar 4: Abstraction */}
+          <div className="oop-pillar-card">
+            <div className="pillar-header">
+              <span className="pillar-badge">Pillar 4</span>
+              <span style={{ fontSize: '20px' }}>🧩</span>
+            </div>
+            <div className="pillar-title">Abstraction</div>
+            <div className="pillar-class-target">Target: CallEventProcessor.java &amp; DatabaseHelper</div>
+            <div className="pillar-desc">
+              Hiding low-level implementation complexity. <code>CallEventProcessor</code> abstracts Android's asynchronous execution queue, SQLite C-cursor mechanics, and HTTP REST networking into one clean high-level method: <code>processIncomingCallEvent()</code>.
+            </div>
+            <div className="pillar-code-box">{`// High-level abstraction hides 100+ lines of SQL & networking
+public class CallEventProcessor {
+    public void processIncomingCallEvent(String phone, long time) {
+        CallContext context = buildContext(phone, time); // Abstracted SQL
+        UrgencyResult result = engine.evaluate(context); // Pure logic
+        if (result.getScore() >= 80) dispatchAlert(result); // Network
+    }
+}`}</div>
+          </div>
+        </div>
+      )}
+
+      {/* SUB-VIEW 2: Classes, Objects & Memory */}
+      {subTab === "classes" && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div className="glass-panel" style={{ padding: '20px' }}>
+            <div className="panel-header" style={{ marginBottom: '14px' }}>
+              <div className="panel-title">
+                <span>📦</span> Core Class Hierarchy &amp; Object Relationships in SafeCall AI
+              </div>
+              <span className="panel-subtitle">Object Composition (Has-A) vs Inheritance (Is-A)</span>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
+              <div style={{ background: 'rgba(15,23,42,0.7)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '14px' }}>
+                <div style={{ color: '#38bdf8', fontWeight: '800', fontFamily: 'var(--font-mono)', fontSize: '13px' }}>CallerProfile.java</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px' }}>Entity Object (Model)</div>
+                <div style={{ fontSize: '12px', color: '#cbd5e1' }}>Encapsulates contact metadata: <code>id</code>, <code>name</code>, <code>phoneNumber</code>, <code>relationship</code>, and <code>Priority</code> enum.</div>
+              </div>
+
+              <div style={{ background: 'rgba(15,23,42,0.7)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '14px' }}>
+                <div style={{ color: '#38bdf8', fontWeight: '800', fontFamily: 'var(--font-mono)', fontSize: '13px' }}>CallRecord.java</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px' }}>Entity Object (Model)</div>
+                <div style={{ fontSize: '12px', color: '#cbd5e1' }}>Represents a single telephony call event: <code>phoneNumber</code>, <code>timestamp</code>, <code>durationSeconds</code>, <code>urgencyScore</code>.</div>
+              </div>
+
+              <div style={{ background: 'rgba(15,23,42,0.7)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '14px' }}>
+                <div style={{ color: '#a78bfa', fontWeight: '800', fontFamily: 'var(--font-mono)', fontSize: '13px' }}>CallContext.java</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px' }}>Composite Container (Has-A)</div>
+                <div style={{ fontSize: '12px', color: '#cbd5e1' }}>Aggregates references to <code>CallerProfile</code>, <code>List&lt;CallRecord&gt; recentCalls</code>, and <code>List&lt;CallRecord&gt; history</code> for evaluation.</div>
+              </div>
+
+              <div style={{ background: 'rgba(15,23,42,0.7)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '14px' }}>
+                <div style={{ color: '#34d399', fontWeight: '800', fontFamily: 'var(--font-mono)', fontSize: '13px' }}>WeightedRuleEngine.java</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px' }}>Stateless Domain Service</div>
+                <div style={{ fontSize: '12px', color: '#cbd5e1' }}>Pure deterministic evaluation logic. Contains no mutable state; produces an immutable <code>UrgencyResult</code> given a <code>CallContext</code>.</div>
+              </div>
+
+              <div style={{ background: 'rgba(15,23,42,0.7)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '14px' }}>
+                <div style={{ color: '#f59e0b', fontWeight: '800', fontFamily: 'var(--font-mono)', fontSize: '13px' }}>UrgencyResult.java</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px' }}>Value Object / DTO</div>
+                <div style={{ fontSize: '12px', color: '#cbd5e1' }}>Immutable Data Transfer Object holding the final score ($0–100$), classification level (<code>LOW</code>, <code>MEDIUM</code>, <code>HIGH</code>), and explanation.</div>
+              </div>
+
+              <div style={{ background: 'rgba(15,23,42,0.7)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '14px' }}>
+                <div style={{ color: '#ef4444', fontWeight: '800', fontFamily: 'var(--font-mono)', fontSize: '13px' }}>DatabaseHelper.java</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px' }}>Thread-Safe Singleton DAO</div>
+                <div style={{ fontSize: '12px', color: '#cbd5e1' }}>Encapsulates all SQLite persistence. Implements the Singleton pattern to eliminate SQLite database locks across threads.</div>
+              </div>
+            </div>
+          </div>
+
+          {/* JVM Memory Allocation: Stack vs Heap */}
+          <div className="glass-panel" style={{ padding: '20px' }}>
+            <div className="panel-header" style={{ marginBottom: '14px' }}>
+              <div className="panel-title">
+                <span>🧠</span> JVM Memory Architecture: Stack vs Heap in SafeCall
+              </div>
+              <span className="panel-subtitle">How Java Manages Objects During a Real Phone Call</span>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div style={{ background: '#060a14', border: '1px solid rgba(56, 189, 248, 0.3)', borderRadius: '10px', padding: '16px' }}>
+                <div style={{ color: '#38bdf8', fontWeight: '800', marginBottom: '8px', fontSize: '14px' }}>JVM STACK MEMORY (Thread-Specific)</div>
+                <div style={{ fontSize: '12px', color: '#cbd5e1', lineHeight: '1.5' }}>
+                  &bull; <b>Method Execution Frames:</b> Pushed onto stack when <code>evaluate(context)</code> is called.<br/>
+                  &bull; <b>Primitive Local Variables:</b> <code>int score = 0;</code>, <code>long currentTime = 1728929340L;</code> stored directly on the stack.<br/>
+                  &bull; <b>Object References:</b> Pointers holding 32/64-bit addresses pointing to Heap objects (e.g. <code>profileRef = 0x7A1</code>).
+                </div>
+              </div>
+
+              <div style={{ background: '#060a14', border: '1px solid rgba(167, 139, 250, 0.3)', borderRadius: '10px', padding: '16px' }}>
+                <div style={{ color: '#a78bfa', fontWeight: '800', marginBottom: '8px', fontSize: '14px' }}>JVM HEAP MEMORY (Shared Across Threads)</div>
+                <div style={{ fontSize: '12px', color: '#cbd5e1', lineHeight: '1.5' }}>
+                  &bull; <b>Object Instances:</b> <code>new CallerProfile(...)</code> allocated on heap at <code>@0x7A1</code>.<br/>
+                  &bull; <b>Collections:</b> <code>ArrayList&lt;CallRecord&gt;</code> storing recent &amp; historical call objects.<br/>
+                  &bull; <b>Garbage Collection:</b> Short-lived context objects are automatically collected by Android's ART garbage collector after evaluation.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SUB-VIEW 3: What is Gradle? Build Pipeline */}
+      {subTab === "gradle" && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* Explanation Banner */}
+          <div className="glass-panel" style={{ padding: '20px' }}>
+            <div style={{ fontSize: '16px', fontWeight: '800', color: '#ffffff', marginBottom: '6px' }}>
+              What is Gradle and Why Does SafeCall AI Use It?
+            </div>
+            <div style={{ fontSize: '13px', color: '#cbd5e1', lineHeight: '1.55' }}>
+              <b>Gradle</b> is an enterprise build automation tool designed for Java and Android. Instead of manually invoking <code>javac</code>, linking dozens of JAR files, generating resource IDs, and compiling XML, Gradle automates the entire lifecycle: resolving remote dependencies from Google Maven, compiling Java source to bytecode, converting bytecode to Android Dalvik Executable (<code>.dex</code>), and packaging everything into an installable <code>app-debug.apk</code>.
+            </div>
+
+            {/* 5-Step Visual Build Pipeline */}
+            <div className="gradle-pipeline-grid">
+              <div className="gradle-step-card">
+                <div style={{ fontSize: '20px', marginBottom: '4px' }}>📝</div>
+                <div style={{ fontWeight: '700', color: '#38bdf8', fontSize: '12px' }}>1. Java Source</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>.java files in src/main/java</div>
+              </div>
+              <div className="gradle-step-card">
+                <div style={{ fontSize: '20px', marginBottom: '4px' }}>⚙️</div>
+                <div style={{ fontWeight: '700', color: '#38bdf8', fontSize: '12px' }}>2. Gradle javac</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Compiles to JVM .class bytecode</div>
+              </div>
+              <div className="gradle-step-card">
+                <div style={{ fontSize: '20px', marginBottom: '4px' }}>🤖</div>
+                <div style={{ fontWeight: '700', color: '#38bdf8', fontSize: '12px' }}>3. D8 / R8 Dexer</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Converts .class to Android classes.dex</div>
+              </div>
+              <div className="gradle-step-card">
+                <div style={{ fontSize: '20px', marginBottom: '4px' }}>📦</div>
+                <div style={{ fontWeight: '700', color: '#38bdf8', fontSize: '12px' }}>4. AAPT2 Resources</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Compiles AndroidManifest &amp; assets</div>
+              </div>
+              <div className="gradle-step-card">
+                <div style={{ fontSize: '20px', marginBottom: '4px' }}>📱</div>
+                <div style={{ fontWeight: '700', color: '#34d399', fontSize: '12px' }}>5. app-debug.apk</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Signed, installable Android APK</div>
+              </div>
+            </div>
+          </div>
+
+          {/* The 3 Gradle Files in SafeCall */}
+          <div className="gradle-files-container">
+            {/* File 1: settings.gradle */}
+            <div className="gradle-file-card">
+              <div className="gradle-file-title">1. settings.gradle</div>
+              <div className="gradle-file-role">Project Structure &amp; Module Discovery</div>
+              <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '10px' }}>
+                Tells Gradle which submodules exist in this workspace. SafeCall includes both the Android application and the ZK dashboard module.
+              </div>
+              <div className="gradle-file-code">{`pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+rootProject.name = "safecall-java"
+include ':app'
+include ':zk-dashboard'`}</div>
+            </div>
+
+            {/* File 2: Root build.gradle */}
+            <div className="gradle-file-card">
+              <div className="gradle-file-title">2. Root build.gradle</div>
+              <div className="gradle-file-role">Project-Wide Plugins &amp; Clean Task</div>
+              <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '10px' }}>
+                Configures the Android Gradle Plugin (AGP) version across all sub-projects and declares global repository mirrors.
+              </div>
+              <div className="gradle-file-code">{`plugins {
+    id 'com.android.application' 
+        version '8.2.2' apply false
+    id 'com.android.library' 
+        version '8.2.2' apply false
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}`}</div>
+            </div>
+
+            {/* File 3: app/build.gradle */}
+            <div className="gradle-file-card">
+              <div className="gradle-file-title">3. app/build.gradle</div>
+              <div className="gradle-file-role">App Config, SDK Targets &amp; Dependencies</div>
+              <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '10px' }}>
+                Specifies Android SDK 34 (Android 14), minimum SDK 26 (Android 8.0), and external libraries like JUnit 4.13.2.
+              </div>
+              <div className="gradle-file-code">{`android {
+    namespace 'com.safecall'
+    compileSdk 34 // Android 14
+
+    defaultConfig {
+        applicationId "com.safecall"
+        minSdk 26    // Android 8.0+
+        targetSdk 34
+        versionCode 1
+    }
+}
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    testImplementation 'junit:junit:4.13.2'
+}`}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SUB-VIEW 4: Multithreading & Concurrency */}
+      {subTab === "threads" && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div className="glass-panel" style={{ padding: '20px' }}>
+            <div className="panel-header" style={{ marginBottom: '14px' }}>
+              <div className="panel-title">
+                <span>🧵</span> Multithreading &amp; Concurrency in SafeCall AI
+              </div>
+              <span className="panel-subtitle">Why Database &amp; Network Operations Cannot Run on the Main UI Thread</span>
+            </div>
+
+            <div style={{ fontSize: '13px', color: '#cbd5e1', lineHeight: '1.55', marginBottom: '16px' }}>
+              Android strictly enforces that the <b>Main Thread (UI Thread)</b> is reserved solely for drawing frames at 60 FPS. If an application attempts SQLite queries or HTTP network calls on the main thread, the OS immediately crashes with a <code>NetworkOnMainThreadException</code> or freezes with an <b>ANR (Application Not Responding)</b> dialog. SafeCall AI uses Java's <code>ExecutorService</code> to execute all telephony evaluations in a background worker thread.
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div style={{ background: '#060a14', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '10px', padding: '16px' }}>
+                <div style={{ color: '#ef4444', fontWeight: '800', marginBottom: '8px', fontSize: '13px' }}>1. Main UI Thread (Ringing Screen)</div>
+                <div style={{ fontSize: '12px', color: '#cbd5e1', lineHeight: '1.5' }}>
+                  &bull; Handles user taps, answer button, and caller name rendering.<br/>
+                  &bull; Must respond in &lt; 16 milliseconds per frame.<br/>
+                  &bull; <b>Never blocks</b> waiting for SQLite or backend HTTP responses.
+                </div>
+              </div>
+
+              <div style={{ background: '#060a14', border: '1px solid rgba(52, 211, 153, 0.3)', borderRadius: '10px', padding: '16px' }}>
+                <div style={{ color: '#34d399', fontWeight: '800', marginBottom: '8px', fontSize: '13px' }}>2. Background Worker Thread (ExecutorService)</div>
+                <div style={{ fontSize: '12px', color: '#cbd5e1', lineHeight: '1.5' }}>
+                  &bull; <code>Executors.newSingleThreadExecutor()</code> runs sequential call events.<br/>
+                  &bull; Queries SQLite table <code>call_history</code> for prior redials.<br/>
+                  &bull; Executes <code>WeightedRuleEngine.evaluate()</code> in ~4 ms.<br/>
+                  &bull; Dispatches HTTP POST to Node.js backend when score &ge; 80.
+                </div>
+              </div>
+            </div>
+
+            <div style={{ marginTop: '16px' }}>
+              <div style={{ fontSize: '12px', color: '#38bdf8', fontWeight: '700', marginBottom: '6px' }}>Code Implementation in CallEventProcessor.java:</div>
+              <pre className="code-block" style={{ margin: 0, padding: '12px' }}>
+                <code>{`// Thread Pool prevents UI freeze
+private final ExecutorService workerExecutor = Executors.newSingleThreadExecutor();
+
+public void onCallMissed(String phoneNumber, long timestamp) {
+    workerExecutor.execute(() -> {
+        // Runs on Background Worker Thread
+        CallContext context = repository.buildContext(phoneNumber, timestamp);
+        UrgencyResult result = ruleEngine.evaluate(context);
+        repository.insertCallRecord(new CallRecord(phoneNumber, timestamp, result.getScore()));
+
+        if (result.getScore() >= 80) {
+            httpAlertDispatcher.sendBreakthroughAlert(result); // Safe from NetworkOnMainThreadException
+        }
+    });
+}`}</code>
+              </pre>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SUB-VIEW 5: Professor Viva Defense Q&A */}
+      {subTab === "viva" && (
+        <div className="viva-card-list">
+          <div className="viva-card">
+            <div className="viva-q">
+              <span>❓</span> 1. "How did you use Object-Oriented Programming (OOP) in this project?"
+            </div>
+            <div className="viva-a">
+              "We applied all 4 pillars of OOP: <b>Encapsulation</b> in <code>CallRecord</code> and <code>CallerProfile</code> with private immutable fields; <b>Inheritance</b> by extending Android's <code>BroadcastReceiver</code> and <code>SQLiteOpenHelper</code>; <b>Polymorphism</b> via enum-driven priority weights and score level dispatch; and <b>Abstraction</b> by isolating the Java Rule Engine from SQLite and Android Telephony hardware through <code>CallEventProcessor</code>."
+            </div>
+          </div>
+
+          <div className="viva-card">
+            <div className="viva-q">
+              <span>❓</span> 2. "What is Gradle, and what happens when you build the app?"
+            </div>
+            <div className="viva-a">
+              "<b>Gradle</b> is our build automation tool. When we run <code>./gradlew assembleDebug</code>, Gradle resolves dependencies like JUnit, compiles our <code>.java</code> source files into JVM <code>.class</code> bytecode using <code>javac</code>, translates the bytecode into Dalvik/ART executable format (<code>classes.dex</code>) using the <b>D8 dexer</b>, compiles Android XML layouts with <b>AAPT2</b>, and packages everything into an installable <code>app-debug.apk</code>."
+            </div>
+          </div>
+
+          <div className="viva-card">
+            <div className="viva-q">
+              <span>❓</span> 3. "Why is DatabaseHelper implemented as a Singleton?"
+            </div>
+            <div className="viva-a">
+              "SQLite in Android uses file-level locking. If multiple threads instantiate multiple <code>SQLiteOpenHelper</code> instances, concurrent writes cause <code>SQLiteDatabaseLockedException</code>. The <b>Singleton pattern</b> with synchronized double-checked locking guarantees only one database helper instance manages connection pooling across all background threads."
+            </div>
+          </div>
+
+          <div className="viva-card">
+            <div className="viva-q">
+              <span>❓</span> 4. "How does the system distinguish an answered call from a missed call?"
+            </div>
+            <div className="viva-a">
+              "We implemented a <b>State Pattern machine</b> in <code>SafeCallPhoneStateReceiver.java</code>. The telephony state sequence for an answered call is <code>IDLE &rarr; RINGING &rarr; OFFHOOK &rarr; IDLE</code>. For a genuine missed call, the sequence skips <code>OFFHOOK</code> and transitions directly <code>IDLE &rarr; RINGING &rarr; IDLE</code>."
+            </div>
+          </div>
+
+          <div className="viva-card">
+            <div className="viva-q">
+              <span>❓</span> 5. "What prevents duplicate alerts if a contact redials 3 times in 10 seconds?"
+            </div>
+            <div className="viva-a">
+              "Two layers of protection: (1) Client-side <b>idempotency keys</b> generated from the caller number and timestamp hash, and (2) Server-side <b>30-second cooldown window</b> in <code>server.js</code> that suppresses duplicate alerts from the same contact within 30 seconds to prevent caregiver alert fatigue."
+            </div>
+          </div>
+
+          <div className="viva-card">
+            <div className="viva-q">
+              <span>❓</span> 6. "Why does the Java rule engine run off the Main UI thread?"
+            </div>
+            <div className="viva-a">
+              "Android prohibits database queries and HTTP network requests on the Main Thread (which causes <code>NetworkOnMainThreadException</code> or ANRs). We offload all context gathering, urgency scoring, and FCM alert dispatching to an <code>ExecutorService</code> background worker thread."
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
