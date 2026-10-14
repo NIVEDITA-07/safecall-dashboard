@@ -1,1785 +1,1485 @@
-/**
- * SafeCall AI — Connected Elderly Care Application
- * Real Multi-Device Pairing, Emergency Call Simulation, & Real-Time Caregiver Notifications
- * Uses Native System Notification Tone & Unrestricted Free-Will Login
- */
+const { useState, useEffect, useMemo } = React;
 
-const { useState, useEffect, useRef, useMemo } = React;
+// 10 Comprehensive Benchmark Cases matching the Backend
+const BENCHMARK_CASES = [
+  {
+    id: "case-1",
+    name: "Normal Single Call",
+    subtitle: "Everyday friend calling once during the afternoon",
+    contactName: "Bob Smith",
+    phoneNumber: "+91 98765 43210",
+    relationship: "Friend",
+    priority: "NORMAL",
+    recentCallsCount: 0,
+    timeOfDay: "14:30",
+    historyTotal: 2,
+    historyMissed: 0,
+    description: "Single call from normal contact during business hours. Insufficient history neutral (+0)."
+  },
+  {
+    id: "case-2",
+    name: "Trusted Contact Calling Repeatedly",
+    subtitle: "Close family/work member redialing multiple times",
+    contactName: "Mom",
+    phoneNumber: "+91 98123 45678",
+    relationship: "Family",
+    priority: "TRUSTED",
+    recentCallsCount: 2,
+    timeOfDay: "15:00",
+    historyTotal: 2,
+    historyMissed: 0,
+    description: "Trusted contact (+20) + repeated calling (+15). Normal timing (+0). Reaches MEDIUM urgency."
+  },
+  {
+    id: "case-3",
+    name: "Emergency Contact Late Night Repeated",
+    subtitle: "Parent calling 3 times at 3:00 AM",
+    contactName: "Dad",
+    phoneNumber: "+91 98222 33445",
+    relationship: "Family",
+    priority: "EMERGENCY",
+    recentCallsCount: 3,
+    timeOfDay: "03:15",
+    historyTotal: 2,
+    historyMissed: 0,
+    description: "Emergency (+30) + High frequency (+30) + Late night context (+20). Highly urgent situation (80/100)."
+  },
+  {
+    id: "case-4",
+    name: "Unknown Caller Single Call",
+    subtitle: "Unsaved number calling once during daytime",
+    contactName: "Unknown Caller",
+    phoneNumber: "+91 87654 32109",
+    relationship: "Unknown",
+    priority: "UNKNOWN",
+    recentCallsCount: 0,
+    timeOfDay: "11:45",
+    historyTotal: 0,
+    historyMissed: 0,
+    description: "Unknown caller (+0) with no redials. Treated with zero urgency (0/100, LOW)."
+  },
+  {
+    id: "case-5",
+    name: "Insufficient Historical Data",
+    subtitle: "Registered contact with only 1 prior call log",
+    contactName: "Alice Miller",
+    phoneNumber: "+91 99000 11223",
+    relationship: "Colleague",
+    priority: "NORMAL",
+    recentCallsCount: 0,
+    timeOfDay: "16:20",
+    historyTotal: 1,
+    historyMissed: 1,
+    description: "Contact has < 3 total calls. Rule 4 ignores high missed percentage to avoid false positives (+0)."
+  },
+  {
+    id: "case-6",
+    name: "High Missed Call Rate Outlier",
+    subtitle: "Normal contact whose calls are usually missed (>=50%)",
+    contactName: "Dr. Dave",
+    phoneNumber: "+91 94444 55566",
+    relationship: "Doctor",
+    priority: "NORMAL",
+    recentCallsCount: 0,
+    timeOfDay: "10:15",
+    historyTotal: 4,
+    historyMissed: 3,
+    description: "History has 4 calls with 3 missed (75%). Satisfies Rule 4 for unusual missed call patterns (+20)."
+  },
+  {
+    id: "case-7",
+    name: "Maximum Boundary Stress Test",
+    subtitle: "All 4 factors at maximum possible weights",
+    contactName: "General Hospital Emergency",
+    phoneNumber: "+91 91111 22233",
+    relationship: "Hospital",
+    priority: "EMERGENCY",
+    recentCallsCount: 4,
+    timeOfDay: "02:40",
+    historyTotal: 5,
+    historyMissed: 4,
+    description: "Identity(+30) + Frequency(+30) + Night(+20) + History(+20) = 100. Verifies maximum clamp limits."
+  },
+  {
+    id: "case-8",
+    name: "Emergency Single Call at 2 AM",
+    subtitle: "Emergency contact calling for the first time at night",
+    contactName: "Sister (In Distress)",
+    phoneNumber: "+91 97777 88899",
+    relationship: "Family",
+    priority: "EMERGENCY",
+    recentCallsCount: 0,
+    timeOfDay: "02:15",
+    historyTotal: 2,
+    historyMissed: 0,
+    description: "Emergency contact (+30). Night trigger active because priority is EMERGENCY (+20) -> Score: 50 (MEDIUM)."
+  }
+];
 
-function getInitialServerUrl() {
-  try {
-    const saved = localStorage.getItem('safecall_server_url');
-    if (saved && saved.trim()) return saved.trim();
-  } catch (e) {}
+// Pure Deterministic JavaScript mirror of `WeightedRuleEngine.java`
+function evaluateUrgency(profile, recentCount, timeStr, historyTotal, historyMissed) {
+  let score = 0;
+  const traces = [];
+  const breakdown = {
+    identity: { pts: 0, max: 30, text: "", rule: "" },
+    frequency: { pts: 0, max: 30, text: "", rule: "" },
+    timing: { pts: 0, max: 20, text: "", rule: "" },
+    history: { pts: 0, max: 20, text: "", rule: "" }
+  };
 
-  const host = window.location.hostname;
-  if (host === 'localhost' || host === '127.0.0.1') return 'http://localhost:4000';
-  if (host && !window.location.protocol.startsWith('file')) return `${window.location.protocol}//${host}:4000`;
-  return 'http://192.168.31.201:4000';
-}
-
-const isNativeBridgeAvailable = () => typeof window.SafeCallNative !== 'undefined';
-
-// Soft, pleasant system chime for web preview (sine wave, gentle decay, no harsh sawtooth)
-function playSoftSystemChime() {
-  try {
-    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    if (!AudioCtx) return;
-    const ctx = new AudioCtx();
-    const now = ctx.currentTime;
-
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(587.33, now); // D5
-    osc.frequency.exponentialRampToValueAtTime(880, now + 0.12); // A5
-
-    gain.gain.setValueAtTime(0.12, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc.start(now);
-    osc.stop(now + 0.5);
-  } catch (e) {}
-}
-
-function BackendArchitectureVisualizer({ onClose, serverUrl, serverOnline, alerts, linkedUsers }) {
-  const [activeTab, setActiveTab] = useState('pipeline'); // 'pipeline', 'calculator', 'oop', 'telemetry'
-  const [selectedStage, setSelectedStage] = useState(4); // default to Rule Engine
-
-  // Interactive Java Rule Calculator State
-  const [calcPriority, setCalcPriority] = useState('EMERGENCY');
-  const [calcRepeats, setCalcRepeats] = useState(4);
-  const [calcTiming, setCalcTiming] = useState('NIGHT');
-  const [calcAnomaly, setCalcAnomaly] = useState('HIGH');
-
-  // Compute live score using exact Java WeightedRuleEngine formulas
-  const pWeight = calcPriority === 'EMERGENCY' ? 25 : calcPriority === 'TRUSTED' ? 15 : 0;
-  const rWeight = calcRepeats >= 4 ? 35 : calcRepeats === 3 ? 22 : calcRepeats === 2 ? 10 : 0;
-  const tWeight = calcTiming === 'NIGHT' ? 10 : 0;
-  const aWeight = calcAnomaly === 'HIGH' ? 30 : calcAnomaly === 'MED' ? 15 : 0;
-  const computedScore = Math.min(100, Math.max(0, pWeight + rWeight + tWeight + aWeight));
-  const meetsThreshold = computedScore >= 80;
-  const urgencyLevel = computedScore >= 71 ? 'HIGH' : computedScore >= 31 ? 'MEDIUM' : 'LOW';
-
-  const stages = [
-    {
-      id: 1,
-      title: 'Real Call Ringing',
-      subtitle: 'Android Telephony Broadcast',
-      icon: '📱',
-      file: 'SafeCallPhoneStateReceiver.java',
-      badge: 'TelephonyManager API',
-      color: '#0284C7',
-      summary: 'Interceps OS telephony broadcast EXTRA_STATE_RINGING. Stores ringing start timestamp and sanitizes caller phone number (or maps private numbers to UNKNOWN).',
-      code: `// SafeCallPhoneStateReceiver.java
-if (state == TelephonyManager.CALL_STATE_RINGING) {
-    isIncoming = true;
-    ringStartTime = System.currentTimeMillis();
-    savedNumber = sanitizePhoneNumber(number);
-}`
-    },
-    {
-      id: 2,
-      title: 'Call Termination & FSM',
-      subtitle: 'Missed vs Answered State Machine',
-      icon: '📡',
-      file: 'SafeCallPhoneStateReceiver.java',
-      badge: 'Finite State Machine',
-      color: '#2563EB',
-      summary: 'Tracks transition to EXTRA_STATE_IDLE. If preceded by RINGING, marks call as MISSED (duration=0). If preceded by OFFHOOK, calculates talk duration. Filters dual-broadcast debounce (<2.5s).',
-      code: `// Deterministic State Transition
-if (lastState == CALL_STATE_RINGING) {
-    // Missed Call (never answered)
-    handleCallFinished(context, savedNumber, ringStartTime, 0, true);
-} else if (isIncoming && lastState == CALL_STATE_OFFHOOK) {
-    // Answered Call Finished
-    int duration = (int) Math.max(1, (now - callAnsweredTime) / 1000);
-    handleCallFinished(context, savedNumber, ringStartTime, duration, false);
-}`
-    },
-    {
-      id: 3,
-      title: 'Background Concurrency',
-      subtitle: 'Worker Thread Dispatch',
-      icon: '⚙️',
-      file: 'CallEventProcessor.java',
-      badge: 'ExecutorService Worker',
-      color: '#7C3AED',
-      summary: 'Offloads processing to Executors.newSingleThreadExecutor() so database operations, contact lookups, and network calls never block Android Main UI thread.',
-      code: `// CallEventProcessor.java
-private static final ExecutorService EXECUTOR = 
-    Executors.newSingleThreadExecutor();
-
-public static void processCallEvent(...) {
-    EXECUTOR.execute(() -> {
-        // Runs cleanly off the Main UI Thread
-    });
-}`
-    },
-    {
-      id: 4,
-      title: '4-Factor Java Urgency Engine',
-      subtitle: 'Deterministic Context Evaluation',
-      icon: '🧠',
-      file: 'WeightedRuleEngine.java',
-      badge: 'Core Java OOP Rules',
-      color: '#DC2626',
-      summary: 'Evaluates Caller Priority (<=25), Repeated Calls in 15m (<=35), Timing & Context (<=10), and Historical Missed Anomaly (<=30). Score strictly clamped 0 to 100.',
-      code: `// WeightedRuleEngine.java
-int score = 0;
-score += calculatePriority(profile);       // Max 25
-score += calculateRepeated(recentCalls);   // Max 35
-score += calculateTiming(callTime);        // Max 10
-score += calculateAnomaly(historyCalls);    // Max 30
-score = Math.max(0, Math.min(100, score)); // Bounds [0, 100]`
-    },
-    {
-      id: 5,
-      title: 'SQLite Persistence & Queue',
-      subtitle: 'Local Storage & Offline Resilience',
-      icon: '💾',
-      file: 'DatabaseHelper.java / CallRepository.java',
-      badge: 'SQLiteOpenHelper v3',
-      color: '#059669',
-      summary: 'Persists evaluated record into call_history table. If score >= 80 but network is offline, safely stores alert in offline_alerts table for automatic replay upon reconnection.',
-      code: `// CallRepository.java
-if (networkAvailable) {
-    sendAlertHttp(serverUrl, token, payload);
-} else {
-    // Offline Resilience Queue
-    repository.enqueueOfflineAlert(idempotentId, payload, callTime);
-}`
-    },
-    {
-      id: 6,
-      title: 'Authenticated REST API',
-      subtitle: 'Idempotent Alert Submission',
-      icon: '🌐',
-      file: 'HttpURLConnection / server.js:4000',
-      badge: 'Bearer JWT Auth',
-      color: '#D97706',
-      summary: 'Submits alert event over HTTP POST to /api/alerts/trigger with header Authorization: Bearer <TOKEN>. Uses deterministic idempotentId (evt_<timestamp>_<hash>).',
-      code: `// HTTP POST /api/alerts/trigger
-POST /api/alerts/trigger
-Headers:
-  Authorization: Bearer <JWT_TOKEN>
-Body: {
-  idempotentId: "evt_1728900000000_348912",
-  callerName: "Mom", score: 85, level: "HIGH",
-  callTime: 1728900000000, isSimulation: false
-}`
-    },
-    {
-      id: 7,
-      title: 'Backend Verification & Cooldown',
-      subtitle: 'Pairing Security & Deduplication',
-      icon: '🛡️',
-      file: 'server.js',
-      badge: 'Node.js Engine',
-      color: '#4F46E5',
-      summary: 'Verifies user owns elderly account, verifies active pairing in relationships, checks 30s duplicate cooldown window, and checks configured threshold (80).',
-      code: `// server.js Cooldown & Authorization Check
-const linkedRels = db.relationships.filter(
-    r => r.elderlyId === user.id && r.status === 'ACTIVE'
-);
-if (score < threshold) return sendJson(200, { triggered: false });
-if (isDuplicateWithinCooldown(user.id, callerPhone, 30000)) {
-    return sendJson(200, { suppressed: true });
-}`
-    },
-    {
-      id: 8,
-      title: 'Google FCM Push Dispatch',
-      subtitle: 'Caregiver Device Notification',
-      icon: '🔔',
-      file: 'fcmDispatcher.js / FCM HTTP v1',
-      badge: 'OAuth2 RS256 HTTP v1',
-      color: '#E11D48',
-      summary: 'Backend initiates OAuth2 RS256 token exchange with Google FCM HTTP v1 API. Caregiver Android app displays high-priority heads-up notification with system ringtone sound.',
-      code: `// fcmDispatcher.js
-https.request({
-  hostname: 'fcm.googleapis.com',
-  path: '/v1/projects/' + projectId + '/messages:send',
-  headers: { 'Authorization': 'Bearer ' + googleAccessToken }
-});`
-    }
-  ];
-
-  const currentStageData = stages.find(s => s.id === selectedStage) || stages[3];
-
-  return (
-    <div className="visualizer-overlay" onClick={onClose}>
-      <div className="visualizer-card" onClick={e => e.stopPropagation()}>
-        {/* Header */}
-        <div className="visualizer-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '24px' }}>⚡</span>
-            <div>
-              <h2 style={{ fontSize: '18px', fontWeight: 800, margin: 0 }}>
-                SafeCall AI — Java & Backend Architecture
-              </h2>
-              <div style={{ fontSize: '12px', opacity: 0.9 }}>
-                Interactive End-to-End Visualizer & Viva Defense Reference
-              </div>
-            </div>
-          </div>
-          <button 
-            onClick={onClose}
-            style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', fontSize: '16px', fontWeight: 800 }}
-          >
-            ✕
-          </button>
-        </div>
-
-        {/* Tab Strip */}
-        <div className="visualizer-tabs">
-          <button 
-            className={`visualizer-tab-btn ${activeTab === 'pipeline' ? 'active' : ''}`}
-            onClick={() => setActiveTab('pipeline')}
-          >
-            🔄 1. Pipeline Flow (8 Stages)
-          </button>
-          <button 
-            className={`visualizer-tab-btn ${activeTab === 'calculator' ? 'active' : ''}`}
-            onClick={() => setActiveTab('calculator')}
-          >
-            🧮 2. Live Java Rule Calculator
-          </button>
-          <button 
-            className={`visualizer-tab-btn ${activeTab === 'oop' ? 'active' : ''}`}
-            onClick={() => setActiveTab('oop')}
-          >
-            🏛️ 3. Java OOP & Patterns
-          </button>
-          <button 
-            className={`visualizer-tab-btn ${activeTab === 'telemetry' ? 'active' : ''}`}
-            onClick={() => setActiveTab('telemetry')}
-          >
-            📊 4. System Telemetry ({alerts.length} Alerts)
-          </button>
-        </div>
-
-        {/* Content Body */}
-        <div style={{ padding: '18px 20px', maxHeight: '70vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-
-          {/* TAB 1: PIPELINE FLOW */}
-          {activeTab === 'pipeline' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                Tap any stage below to inspect its Java implementation, data structures, and state transitions:
-              </div>
-
-              {/* 8-Stage Grid */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '8px' }}>
-                {stages.map(st => (
-                  <div 
-                    key={st.id} 
-                    className={`stage-pill ${selectedStage === st.id ? 'active' : ''}`}
-                    onClick={() => setSelectedStage(st.id)}
-                    style={{ borderColor: selectedStage === st.id ? st.color : '#E2E8F0' }}
-                  >
-                    <span style={{ fontSize: '20px' }}>{st.icon}</span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: '11px', fontWeight: 800, color: st.color }}>
-                        STAGE {st.id}
-                      </div>
-                      <div style={{ fontSize: '12px', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {st.title}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Selected Stage Detail Card */}
-              <div style={{ background: '#F8FAFC', border: '1px solid #CBD5E1', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '22px' }}>{currentStageData.icon}</span>
-                    <div>
-                      <h3 style={{ fontSize: '16px', fontWeight: 800, color: currentStageData.color }}>
-                        Stage {currentStageData.id}: {currentStageData.title}
-                      </h3>
-                      <div style={{ fontSize: '12px', color: '#64748B' }}>
-                        File: <strong>{currentStageData.file}</strong>
-                      </div>
-                    </div>
-                  </div>
-                  <span style={{ background: currentStageData.color, color: 'white', padding: '3px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 800 }}>
-                    {currentStageData.badge}
-                  </span>
-                </div>
-
-                <p style={{ fontSize: '13px', color: '#334155', lineHeight: '1.5' }}>
-                  {currentStageData.summary}
-                </p>
-
-                <div>
-                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748B', marginBottom: '4px' }}>
-                    KEY IMPLEMENTATION SNIPPET:
-                  </div>
-                  <pre className="code-box-dark">
-                    <code>{currentStageData.code}</code>
-                  </pre>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 2: LIVE JAVA RULE CALCULATOR */}
-          {activeTab === 'calculator' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                Interactive simulator of <strong>WeightedRuleEngine.java</strong>. Adjust parameters to verify exact score calculations and threshold triggers:
-              </div>
-
-              {/* Factor 1: Caller Priority */}
-              <div style={{ background: '#F8FAFC', padding: '12px', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '13px', fontWeight: 800 }}>1. Caller Priority (Max 25 pts)</span>
-                  <span style={{ fontSize: '13px', fontWeight: 800, color: '#1B7575' }}>+{pWeight} pts</span>
-                </div>
-                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                  {['EMERGENCY', 'TRUSTED', 'NORMAL', 'UNKNOWN'].map(p => (
-                    <button 
-                      key={p} 
-                      className={`preset-pill ${calcPriority === p ? 'active' : ''}`}
-                      style={{ background: calcPriority === p ? '#1B7575' : '#FFFFFF', color: calcPriority === p ? '#FFFFFF' : '#334155', borderColor: calcPriority === p ? '#1B7575' : '#CBD5E1' }}
-                      onClick={() => setCalcPriority(p)}
-                    >
-                      {p === 'EMERGENCY' ? '🚨 EMERGENCY (+25)' : p === 'TRUSTED' ? '⭐ TRUSTED (+15)' : p === 'NORMAL' ? '👤 NORMAL (+0)' : '❓ UNKNOWN (+0)'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Factor 2: Repeated Calls */}
-              <div style={{ background: '#F8FAFC', padding: '12px', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '13px', fontWeight: 800 }}>2. Repeated Calls in 15m Window (Max 35 pts)</span>
-                  <span style={{ fontSize: '13px', fontWeight: 800, color: '#1B7575' }}>+{rWeight} pts</span>
-                </div>
-                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                  {[1, 2, 3, 4].map(num => (
-                    <button 
-                      key={num} 
-                      className="preset-pill"
-                      style={{ background: calcRepeats === num ? '#1B7575' : '#FFFFFF', color: calcRepeats === num ? '#FFFFFF' : '#334155', borderColor: calcRepeats === num ? '#1B7575' : '#CBD5E1' }}
-                      onClick={() => setCalcRepeats(num)}
-                    >
-                      {num === 1 ? '1 Call (+0)' : num === 2 ? '2 Calls (+10)' : num === 3 ? '3 Calls (+22)' : '4+ Calls (+35)'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Factor 3: Time of Day */}
-              <div style={{ background: '#F8FAFC', padding: '12px', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '13px', fontWeight: 800 }}>3. Call Timing & Context (Max 10 pts)</span>
-                  <span style={{ fontSize: '13px', fontWeight: 800, color: '#1B7575' }}>+{tWeight} pts</span>
-                </div>
-                <div style={{ display: 'flex', gap: '6px' }}>
-                  {['DAY', 'NIGHT'].map(t => (
-                    <button 
-                      key={t} 
-                      className="preset-pill"
-                      style={{ background: calcTiming === t ? '#1B7575' : '#FFFFFF', color: calcTiming === t ? '#FFFFFF' : '#334155', borderColor: calcTiming === t ? '#1B7575' : '#CBD5E1' }}
-                      onClick={() => setCalcTiming(t)}
-                    >
-                      {t === 'DAY' ? '☀️ Daytime (06:00 - 22:59) (+0)' : '🌙 Late Night (23:00 - 05:00) (+10)'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Factor 4: Historical Missed Anomaly */}
-              <div style={{ background: '#F8FAFC', padding: '12px', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '13px', fontWeight: 800 }}>4. Historical Missed-Call Anomaly (Max 30 pts)</span>
-                  <span style={{ fontSize: '13px', fontWeight: 800, color: '#1B7575' }}>+{aWeight} pts</span>
-                </div>
-                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                  {['LOW', 'MED', 'HIGH'].map(a => (
-                    <button 
-                      key={a} 
-                      className="preset-pill"
-                      style={{ background: calcAnomaly === a ? '#1B7575' : '#FFFFFF', color: calcAnomaly === a ? '#FFFFFF' : '#334155', borderColor: calcAnomaly === a ? '#1B7575' : '#CBD5E1' }}
-                      onClick={() => setCalcAnomaly(a)}
-                    >
-                      {a === 'LOW' ? 'Consistent Baseline (<33%) (+0)' : a === 'MED' ? 'Moderate Pattern (33-49%) (+15)' : 'High Anomaly (>=50% Missed) (+30)'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Live Evaluated Output */}
-              <div style={{ background: meetsThreshold ? '#FEF2F2' : '#F0FDF4', border: meetsThreshold ? '2px solid #EF4444' : '2px solid #22C55E', borderRadius: '12px', padding: '16px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <div style={{ fontSize: '11px', fontWeight: 800, color: meetsThreshold ? '#991B1B' : '#166534' }}>
-                      EVALUATION RESULT (FORMULA S = MIN(100, W1+W2+W3+W4))
-                    </div>
-                    <div style={{ fontSize: '26px', fontWeight: 900, color: meetsThreshold ? '#DC2626' : '#15803D' }}>
-                      {computedScore} / 100 ({urgencyLevel})
-                    </div>
-                  </div>
-                  <span style={{ background: meetsThreshold ? '#DC2626' : '#15803D', color: 'white', padding: '6px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 800 }}>
-                    {meetsThreshold ? '🚨 ALERTS CAREGIVER VIA FCM' : '✓ LOGGED LOCALLY (NO ALERT)'}
-                  </span>
-                </div>
-
-                <div style={{ marginTop: '10px', fontSize: '13px', color: '#475569' }}>
-                  Score Breakdown: {pWeight} (Priority) + {rWeight} (Repeats) + {tWeight} (Time) + {aWeight} (Anomaly) = <strong>{computedScore}/100</strong>.
-                  Threshold is <strong>80/100</strong>.
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 3: JAVA OOP & PATTERNS */}
-          {activeTab === 'oop' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                Core Object-Oriented Programming (OOP) and Software Design Patterns in SafeCall AI:
-              </div>
-
-              {/* OOP Principles */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <div style={{ background: '#F8FAFC', padding: '12px', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
-                  <div style={{ fontSize: '13px', fontWeight: 800, color: '#0F766E' }}>🔒 Encapsulation</div>
-                  <div style={{ fontSize: '12px', color: '#475569', marginTop: '4px' }}>
-                    Private fields in <code>CallerProfile</code> and <code>CallRecord</code> with accessors and type-safe enums.
-                  </div>
-                </div>
-                <div style={{ background: '#F8FAFC', padding: '12px', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
-                  <div style={{ fontSize: '13px', fontWeight: 800, color: '#0F766E' }}>🧬 Inheritance</div>
-                  <div style={{ fontSize: '12px', color: '#475569', marginTop: '4px' }}>
-                    <code>DatabaseHelper extends SQLiteOpenHelper</code> and <code>SafeCallPhoneStateReceiver extends BroadcastReceiver</code>.
-                  </div>
-                </div>
-                <div style={{ background: '#F8FAFC', padding: '12px', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
-                  <div style={{ fontSize: '13px', fontWeight: 800, color: '#0F766E' }}>🎭 Polymorphism</div>
-                  <div style={{ fontSize: '12px', color: '#475569', marginTop: '4px' }}>
-                    Method overriding for <code>onReceive()</code> and <code>onCreate()</code>; polymorphic <code>List&lt;CallRecord&gt;</code> collections.
-                  </div>
-                </div>
-                <div style={{ background: '#F8FAFC', padding: '12px', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
-                  <div style={{ fontSize: '13px', fontWeight: 800, color: '#0F766E' }}>📦 Abstraction</div>
-                  <div style={{ fontSize: '12px', color: '#475569', marginTop: '4px' }}>
-                    <code>WeightedRuleEngine</code> encapsulates complex math behind a pure <code>evaluate(CallContext)</code> contract.
-                  </div>
-                </div>
-              </div>
-
-              {/* Design Patterns */}
-              <div style={{ fontSize: '13px', fontWeight: 800, marginTop: '6px' }}>Implemented Design Patterns:</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div style={{ padding: '10px 12px', background: '#F1F5F9', borderRadius: '8px', fontSize: '12px' }}>
-                  <strong>1. Strategy / Rule Engine Pattern</strong> (<code>WeightedRuleEngine.java</code>): Modular, orthogonal scoring strategies.
-                </div>
-                <div style={{ padding: '10px 12px', background: '#F1F5F9', borderRadius: '8px', fontSize: '12px' }}>
-                  <strong>2. Repository Pattern</strong> (<code>CallRepository.java</code>): Domain-level data access shielding raw SQL.
-                </div>
-                <div style={{ padding: '10px 12px', background: '#F1F5F9', borderRadius: '8px', fontSize: '12px' }}>
-                  <strong>3. Finite State Machine (FSM)</strong> (<code>SafeCallPhoneStateReceiver.java</code>): Telephony transition model.
-                </div>
-                <div style={{ padding: '10px 12px', background: '#F1F5F9', borderRadius: '8px', fontSize: '12px' }}>
-                  <strong>4. Adapter / Bridge Pattern</strong> (<code>SafeCallNativeBridge.java</code>): Javascript-to-Java interface bridge.
-                </div>
-                <div style={{ padding: '10px 12px', background: '#F1F5F9', borderRadius: '8px', fontSize: '12px' }}>
-                  <strong>5. Observer Pattern</strong> (<code>BroadcastReceiver</code>): Reacts to OS telephone events.
-                </div>
-                <div style={{ padding: '10px 12px', background: '#F1F5F9', borderRadius: '8px', fontSize: '12px' }}>
-                  <strong>6. Active Object / Concurrency</strong> (<code>ExecutorService</code>): Background thread non-blocking execution.
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 4: LIVE TELEMETRY & FEED */}
-          {activeTab === 'telemetry' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-                <div style={{ background: '#F8FAFC', padding: '12px', borderRadius: '10px', border: '1px solid #E2E8F0', textAlign: 'center' }}>
-                  <div style={{ fontSize: '11px', color: '#64748B' }}>BACKEND HEALTH</div>
-                  <div style={{ fontSize: '16px', fontWeight: 800, color: serverOnline ? '#15803D' : '#DC2626' }}>
-                    {serverOnline ? '● ONLINE' : '○ OFFLINE'}
-                  </div>
-                </div>
-                <div style={{ background: '#F8FAFC', padding: '12px', borderRadius: '10px', border: '1px solid #E2E8F0', textAlign: 'center' }}>
-                  <div style={{ fontSize: '11px', color: '#64748B' }}>PAIRED USERS</div>
-                  <div style={{ fontSize: '16px', fontWeight: 800, color: '#0F766E' }}>
-                    {linkedUsers.length} Active
-                  </div>
-                </div>
-                <div style={{ background: '#F8FAFC', padding: '12px', borderRadius: '10px', border: '1px solid #E2E8F0', textAlign: 'center' }}>
-                  <div style={{ fontSize: '11px', color: '#64748B' }}>TOTAL ALERTS</div>
-                  <div style={{ fontSize: '16px', fontWeight: 800, color: '#DC2626' }}>
-                    {alerts.length} In History
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ fontSize: '13px', fontWeight: 800 }}>Recent Processed Urgency Alerts:</div>
-              {alerts.length === 0 ? (
-                <div style={{ padding: '20px', textAlign: 'center', color: '#94A3B8', fontSize: '13px', fontStyle: 'italic' }}>
-                  No urgency alerts recorded yet. Simulate or trigger a real call to populate live stream.
-                </div>
-              ) : (
-                alerts.slice(0, 5).map(a => (
-                  <div key={a.id} style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <div style={{ fontSize: '13px', fontWeight: 800 }}>
-                        {a.callerName} ({a.callerPhone}) • Score: {a.score}/100
-                      </div>
-                      <div style={{ fontSize: '11px', color: '#64748B' }}>
-                        {a.explanation}
-                      </div>
-                    </div>
-                    <span style={{ fontSize: '11px', fontWeight: 700, padding: '3px 8px', borderRadius: '10px', background: a.status === 'ACKNOWLEDGED' ? '#DCFCE7' : '#FEE2E2', color: a.status === 'ACKNOWLEDGED' ? '#15803D' : '#DC2626' }}>
-                      {a.status}
-                    </span>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-
-        </div>
-
-        {/* Footer */}
-        <div style={{ padding: '12px 20px', background: '#F8FAFC', borderTop: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ fontSize: '11px', color: '#64748B' }}>
-            SafeCall AI • Java Native Telephony + Node.js FCM
-          </div>
-          <button 
-            className="btn-primary-big"
-            style={{ width: 'auto', height: '36px', padding: '0 18px', fontSize: '13px', background: '#0F766E' }}
-            onClick={onClose}
-          >
-            Close Visualizer
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function SafeCallApp() {
-  // Server Config
-  const [serverUrl, setServerUrl] = useState(getInitialServerUrl);
-  const [serverOnline, setServerOnline] = useState(null);
-  const [showServerModal, setShowServerModal] = useState(false);
-  const [serverInput, setServerInput] = useState(serverUrl);
-  const [showVisualizer, setShowVisualizer] = useState(false);
-
-  // Auth & Identity State
-  const [currentUser, setCurrentUser] = useState(() => {
-    try {
-      const saved = localStorage.getItem('safecall_user');
-      return saved ? JSON.parse(saved) : null;
-    } catch (e) {
-      return null;
-    }
+  traces.push({
+    step: "01. CONTEXT",
+    text: `Incoming call from ${profile.name || "Unknown"} (${profile.phone || "N/A"}), Priority: ${profile.priority}`
   });
 
-  const [token, setToken] = useState(() => localStorage.getItem('safecall_token') || 'session_token');
+  // Factor 1: Caller Identity (Max 30)
+  if (profile.priority === "EMERGENCY") {
+    score += 30;
+    breakdown.identity = { pts: 30, max: 30, text: "Emergency contact (+30)", rule: "priority == EMERGENCY (+30)" };
+    traces.push({ step: "02. IDENTITY", text: "Caller identified as EMERGENCY priority.", pts: "+30 pts", current: score });
+  } else if (profile.priority === "TRUSTED") {
+    score += 20;
+    breakdown.identity = { pts: 20, max: 30, text: "Trusted contact (+20)", rule: "priority == TRUSTED (+20)" };
+    traces.push({ step: "02. IDENTITY", text: "Caller identified as TRUSTED priority.", pts: "+20 pts", current: score });
+  } else if (profile.priority === "NORMAL") {
+    breakdown.identity = { pts: 0, max: 30, text: "Normal contact (+0)", rule: "priority == NORMAL (+0)" };
+    traces.push({ step: "02. IDENTITY", text: "Caller identified as NORMAL contact.", pts: "+0 pts", current: score });
+  } else {
+    breakdown.identity = { pts: 0, max: 30, text: "Unknown caller (+0)", rule: "profile == null (+0)" };
+    traces.push({ step: "02. IDENTITY", text: "Unknown number (Not found in contacts).", pts: "+0 pts", current: score });
+  }
 
-  // Free-Will Login Form State (Any Username, Password, or Identifier)
-  const [loginRole, setLoginRole] = useState('elderly'); // 'elderly' or 'caregiver'
-  const [loginIdentifier, setLoginIdentifier] = useState('Meera');
-  const [loginPassword, setLoginPassword] = useState('');
-  const [loginName, setLoginName] = useState('');
-  const [loginError, setLoginError] = useState('');
-  const [loginLoading, setLoginLoading] = useState(false);
+  // Factor 2: Call Frequency (Max 30)
+  if (recentCount >= 3) {
+    score += 30;
+    breakdown.frequency = { pts: 30, max: 30, text: "High frequency calling (+30)", rule: "recentCount >= 3 (+30)" };
+    traces.push({ step: "03. FREQUENCY", text: `High redial frequency detected (${recentCount} prior calls in 15 min).`, pts: "+30 pts", current: score });
+  } else if (recentCount >= 1) {
+    score += 15;
+    breakdown.frequency = { pts: 15, max: 30, text: "Repeated calls (+15)", rule: "recentCount >= 1 (+15)" };
+    traces.push({ step: "03. FREQUENCY", text: `Repeated redial detected (${recentCount} prior call in 15 min).`, pts: "+15 pts", current: score });
+  } else {
+    breakdown.frequency = { pts: 0, max: 30, text: "Normal frequency (+0)", rule: "recentCount == 0 (+0)" };
+    traces.push({ step: "03. FREQUENCY", text: "First call attempt in current time window.", pts: "+0 pts", current: score });
+  }
 
-  // Senior Screen State
-  const [pairingCode, setPairingCode] = useState('');
-  const [pairingExpiresAt, setPairingExpiresAt] = useState(0);
-  const [pairingTimeLeft, setPairingTimeLeft] = useState(0);
-  const [seniorSimStatus, setSeniorSimStatus] = useState('');
-  const [seniorSimLoading, setSeniorSimLoading] = useState(false);
+  // Factor 3: Timing and Context (Max 20)
+  const [hourStr, minStr] = timeStr.split(":");
+  const hour = parseInt(hourStr, 10);
+  const isLateNight = (hour >= 23 || hour <= 5);
 
-  // Caregiver Screen State
-  const [caregiverTab, setCaregiverTab] = useState('alerts'); // 'alerts', 'pair', 'seniors'
-  const [inputCode, setInputCode] = useState('');
-  const [pairStatus, setPairStatus] = useState('');
-  const [pairLoading, setPairLoading] = useState(false);
-  const [latestPopupAlert, setLatestPopupAlert] = useState(null);
+  const isEmergency = (profile.priority === "EMERGENCY");
+  const isRepeated = (recentCount >= 1);
 
-  // Common State
-  const [linkedUsers, setLinkedUsers] = useState([]);
-  const [alerts, setAlerts] = useState([]);
-  const [telephonyPerms, setTelephonyPerms] = useState({ hasPhoneState: false, hasCallLog: false, allGranted: false });
-  const [offlineAlertsCount, setOfflineAlertsCount] = useState(0);
-  const seenAlertIdsRef = useRef(new Set());
-  const initialLoadRef = useRef(true);
+  if (isLateNight && (isRepeated || isEmergency)) {
+    score += 20;
+    breakdown.timing = { pts: 20, max: 20, text: "Late night contextual urgency (+20)", rule: "isLateNight && (recent>=1 || EMERGENCY) (+20)" };
+    traces.push({ 
+      step: "04. TIMING", 
+      text: `Late Night context confirmed (${timeStr} hrs). Triggered because ${isEmergency ? "Caller is Emergency" : "Caller is Repeated"}.`, 
+      pts: "+20 pts", 
+      current: score 
+    });
+  } else if (isLateNight) {
+    breakdown.timing = { pts: 0, max: 20, text: "Late night single call (+0)", rule: "isLateNight but neither repeated nor emergency (+0)" };
+    traces.push({ step: "04. TIMING", text: `Late Night (${timeStr} hrs), but single non-emergency call; neutral timing applied.`, pts: "+0 pts", current: score });
+  } else {
+    breakdown.timing = { pts: 0, max: 20, text: "Normal daytime timing (+0)", rule: "Daytime (06:00 - 22:59) (+0)" };
+    traces.push({ step: "04. TIMING", text: `Normal daytime call time (${timeStr} hrs).`, pts: "+0 pts", current: score });
+  }
 
-  // Sync auth state to Android Native Bridge whenever user, token, or serverUrl changes
-  useEffect(() => {
-    if (window.SafeCallNative && window.SafeCallNative.syncAuthState) {
-      if (currentUser) {
-        window.SafeCallNative.syncAuthState(
-          serverUrl,
-          token,
-          currentUser.role,
-          currentUser.id,
-          currentUser.name
-        );
-      } else {
-        window.SafeCallNative.syncAuthState(serverUrl, '', '', '', '');
-      }
+  // Factor 4: Historical Behaviour (Max 20)
+  if (historyTotal >= 3) {
+    if (historyMissed >= Math.ceil(historyTotal / 2)) {
+      score += 20;
+      breakdown.history = { pts: 20, max: 20, text: "Historically high missed call rate (+20)", rule: "missedCount >= history.size() / 2 (+20)" };
+      traces.push({ 
+        step: "05. HISTORY", 
+        text: `Unusual missed pattern: ${historyMissed} of ${historyTotal} previous calls missed (>=50%).`, 
+        pts: "+20 pts", 
+        current: score 
+      });
+    } else {
+      breakdown.history = { pts: 0, max: 20, text: "Normal historical behaviour (+0)", rule: "missedCount < 50% (+0)" };
+      traces.push({ step: "05. HISTORY", text: `History normal: ${historyTotal - historyMissed} answered vs ${historyMissed} missed.`, pts: "+0 pts", current: score });
     }
-  }, [currentUser, token, serverUrl]);
+  } else {
+    breakdown.history = { pts: 0, max: 20, text: "Insufficient history neutrally scored (+0)", rule: "history.size() < 3 (+0)" };
+    traces.push({ step: "05. HISTORY", text: `Sample size too small (${historyTotal} < 3 calls); neutrally scored.`, pts: "+0 pts", current: score });
+  }
 
-  // Check Android telephony permissions & offline alerts queue
-  useEffect(() => {
-    function refreshNativeState() {
-      if (window.SafeCallNative) {
-        if (window.SafeCallNative.getTelephonyPermissionStatus) {
-          try {
-            const raw = window.SafeCallNative.getTelephonyPermissionStatus();
-            setTelephonyPerms(JSON.parse(raw));
-          } catch (e) {}
-        }
-        if (window.SafeCallNative.getOfflineAlertsCount) {
-          try {
-            setOfflineAlertsCount(window.SafeCallNative.getOfflineAlertsCount());
-          } catch (e) {}
-        }
-      }
-    }
+  // Boundary clamp
+  const rawScore = score;
+  score = Math.max(0, Math.min(100, score));
 
-    refreshNativeState();
-    window.onNativePermissionsUpdated = refreshNativeState;
-    const interval = setInterval(refreshNativeState, 5000);
-    return () => {
-      clearInterval(interval);
-      window.onNativePermissionsUpdated = null;
+  let level = "LOW";
+  let actionTitle = "Silent Alert / Normal Banner";
+  let actionDesc = "Standard incoming call handling. Device respects Do Not Disturb (DND) or silent profile.";
+  let color = "var(--urgency-low)";
+
+  if (score <= 30) {
+    level = "LOW";
+    actionTitle = "Standard Call (Normal Priority)";
+    actionDesc = "Urgency estimate is low. Phone will follow default user ringtone or silent settings without interruption.";
+    color = "var(--urgency-low)";
+  } else if (score <= 70) {
+    level = "MEDIUM";
+    actionTitle = "Elevated Priority Alert";
+    actionDesc = "Noticeable caller context detected. Displays a prominent urgency badge on the incoming call banner.";
+    color = "var(--urgency-med)";
+  } else {
+    level = "HIGH";
+    actionTitle = "Critical Breakthrough Urgency";
+    actionDesc = "Strong contextual evidence of emergency. Bypasses DND, triggers distinct audible chime & alert takeover.";
+    color = "var(--urgency-high)";
+  }
+
+  traces.push({
+    step: "06. RESULT",
+    text: `Calculated Score: ${score}/100 (Level: ${level}) -> Saved to SQLite table 'call_history'.`,
+    pts: `${score}/100`,
+    current: score
+  });
+
+  return {
+    score,
+    rawScore,
+    level,
+    color,
+    actionTitle,
+    actionDesc,
+    breakdown,
+    traces,
+    explanation: `${breakdown.identity.text}. ${breakdown.frequency.text}. ${breakdown.timing.text}. ${breakdown.history.text}.`
+  };
+}
+
+function App() {
+  const [activeTab, setActiveTab] = useState("playground"); // "playground" | "cases" | "code" | "db"
+  const [selectedCaseId, setSelectedCaseId] = useState("case-3");
+
+  // State for Playground Form
+  const [profile, setProfile] = useState({
+    name: "Dad",
+    phone: "+91 98222 33445",
+    relationship: "Family",
+    priority: "EMERGENCY"
+  });
+  const [recentCallsCount, setRecentCallsCount] = useState(3);
+  const [timeOfDay, setTimeOfDay] = useState("03:15");
+  const [historyTotal, setHistoryTotal] = useState(2);
+  const [historyMissed, setHistoryMissed] = useState(0);
+
+  // History log for simulated SQLite persistence
+  const [dbLogs, setDbLogs] = useState(() => {
+    return [
+      { id: 1, name: "Dad", phone: "+91 98222 33445", time: "03:15 AM", score: 80, level: "HIGH", exp: "Emergency (+30). High frequency (+30). Late night (+20)." },
+      { id: 2, name: "Mom", phone: "+91 98123 45678", time: "15:00 PM", score: 35, level: "MEDIUM", exp: "Trusted (+20). Repeated calls (+15). Normal timing (+0)." },
+      { id: 3, name: "Bob Smith", phone: "+91 98765 43210", time: "14:30 PM", score: 0, level: "LOW", exp: "Normal contact (+0). Normal frequency (+0)." }
+    ];
+  });
+
+  // Load a benchmark case
+  const loadCase = (c) => {
+    setSelectedCaseId(c.id);
+    setProfile({
+      name: c.contactName,
+      phone: c.phoneNumber,
+      relationship: c.relationship,
+      priority: c.priority
+    });
+    setRecentCallsCount(c.recentCallsCount);
+    setTimeOfDay(c.timeOfDay);
+    setHistoryTotal(c.historyTotal);
+    setHistoryMissed(c.historyMissed);
+  };
+
+  // Run calculation
+  const evaluation = useMemo(() => {
+    return evaluateUrgency(profile, recentCallsCount, timeOfDay, historyTotal, historyMissed);
+  }, [profile, recentCallsCount, timeOfDay, historyTotal, historyMissed]);
+
+  // Log simulation to DB
+  const saveToDb = () => {
+    const newRecord = {
+      id: Date.now(),
+      name: profile.name,
+      phone: profile.phone,
+      time: timeOfDay,
+      score: evaluation.score,
+      level: evaluation.level,
+      exp: evaluation.explanation
     };
-  }, []);
+    setDbLogs([newRecord, ...dbLogs]);
+  };
 
-  // Register Caregiver FCM Push Token with backend
-  useEffect(() => {
-    if (currentUser && currentUser.role === 'caregiver' && token) {
-      let fcmToken = localStorage.getItem('safecall_fcm_token');
-      if (!fcmToken) {
-        fcmToken = 'fcm_cg_' + currentUser.id + '_' + Math.random().toString(36).substring(2, 10);
-        localStorage.setItem('safecall_fcm_token', fcmToken);
-      }
-      apiFetch('/api/caregiver/fcm-token', {
-        method: 'POST',
-        body: JSON.stringify({ fcmToken })
-      }).catch(err => console.warn('[FCM] Token registration note:', err.message));
-    }
-  }, [currentUser, token]);
-
-  // Helper: Authenticated Fetch with auto role header
-  async function apiFetch(endpoint, options = {}) {
-    const cleanBase = serverUrl.replace(/\/+$/, '');
-    const headers = {
-      'Content-Type': 'application/json',
-      'Bypass-Tunnel-Reminder': 'true',
-      'x-user-role': currentUser ? currentUser.role : loginRole,
-      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-      ...(options.headers || {})
-    };
-
-    try {
-      const res = await fetch(`${cleanBase}${endpoint}`, {
-        ...options,
-        headers
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(data.error || `HTTP ${res.status}`);
-      }
-      return data;
-    } catch (err) {
-      console.warn(`[API] ${endpoint} warning:`, err.message);
-      throw err;
-    }
-  }
-
-  // Ping Backend Health
-  useEffect(() => {
-    let active = true;
-    function checkHealth() {
-      apiFetch('/api/health')
-        .then(d => { if (active) setServerOnline(d.status === 'UP'); })
-        .catch(() => { if (active) setServerOnline(false); });
-    }
-    checkHealth();
-    const interval = setInterval(checkHealth, 8000);
-    return () => { active = false; clearInterval(interval); };
-  }, [serverUrl, token]);
-
-  // Pairing Countdown Timer
-  useEffect(() => {
-    if (!pairingExpiresAt) return;
-    const interval = setInterval(() => {
-      const remaining = Math.max(0, Math.floor((pairingExpiresAt - Date.now()) / 1000));
-      setPairingTimeLeft(remaining);
-      if (remaining <= 0) {
-        setPairingCode('');
-        setPairingExpiresAt(0);
-      }
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [pairingExpiresAt]);
-
-  // Fetch Linked Users (Polled every 2.5s)
-  useEffect(() => {
-    if (!currentUser) return;
-    let active = true;
-
-    async function fetchLinked() {
-      try {
-        const data = await apiFetch('/api/pairing/linked');
-        if (active && data.linked) {
-          setLinkedUsers(data.linked);
-          // If Senior was waiting for code to be paired and now has a caregiver, clear the code!
-          if (currentUser.role === 'elderly' && data.linked.length > 0 && pairingCode) {
-            setPairingCode('');
-            setSeniorSimStatus(`✓ Connected to Caregiver: ${data.linked[0].name} (${data.linked[0].phone || 'Active'})!`);
-          }
-        }
-      } catch (e) {}
-    }
-
-    fetchLinked();
-    const interval = setInterval(fetchLinked, 2500);
-    return () => { active = false; clearInterval(interval); };
-  }, [currentUser, token, serverUrl, pairingCode]);
-
-  // Caregiver Alert Polling Loop (Every 1.5s)
-  useEffect(() => {
-    if (!currentUser || currentUser.role !== 'caregiver') return;
-    let active = true;
-
-    async function pollAlerts() {
-      try {
-        const data = await apiFetch('/api/alerts/history');
-        if (!active || !data.alerts) return;
-
-        const incomingAlerts = data.alerts;
-        setAlerts(incomingAlerts);
-
-        // Check for brand new alerts that we haven't seen yet
-        if (!initialLoadRef.current) {
-          for (const alert of incomingAlerts) {
-            if (!seenAlertIdsRef.current.has(alert.id)) {
-              seenAlertIdsRef.current.add(alert.id);
-
-              // 1. Post REAL Android Notification with native system tone
-              if (isNativeBridgeAvailable()) {
-                window.SafeCallNative.showSystemNotification(
-                  `🚨 Alert for ${alert.elderlyName}`,
-                  `Urgent call from ${alert.callerName} (${alert.score}/100): ${alert.explanation}`,
-                  alert.score
-                );
-              } else {
-                playSoftSystemChime();
-              }
-
-              // 2. Vibration
-              if (navigator.vibrate) {
-                navigator.vibrate([250, 100, 250]);
-              }
-
-              // 3. In-App Flash Popup
-              setLatestPopupAlert(alert);
-            }
-          }
-        } else {
-          incomingAlerts.forEach(a => seenAlertIdsRef.current.add(a.id));
-          initialLoadRef.current = false;
-        }
-      } catch (e) {}
-    }
-
-    pollAlerts();
-    const interval = setInterval(pollAlerts, 1500);
-    return () => { active = false; clearInterval(interval); };
-  }, [currentUser, token, serverUrl]);
-
-  // --- Handlers ---
-
-  // Handle Free-Will Login / Registration (Any username, phone, email, password)
-  async function handleUniversalLogin(e) {
-    if (e) e.preventDefault();
-    setLoginError('');
-    setLoginLoading(true);
-
-    const identifier = (loginIdentifier || '').trim() || (loginRole === 'elderly' ? 'Meera' : 'Bob');
-    const displayName = (loginName || '').trim() || identifier;
-
-    try {
-      const res = await apiFetch('/api/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({
-          identifier,
-          username: identifier,
-          phone: identifier,
-          name: displayName,
-          password: loginPassword,
-          role: loginRole
-        })
-      });
-
-      const userObj = res.user || {
-        id: 'usr_' + Date.now(),
-        name: displayName,
-        phone: identifier,
-        role: loginRole
-      };
-      const userToken = res.token || 'tok_' + Date.now();
-
-      setCurrentUser(userObj);
-      setToken(userToken);
-      localStorage.setItem('safecall_user', JSON.stringify(userObj));
-      localStorage.setItem('safecall_token', userToken);
-      initialLoadRef.current = true;
-      seenAlertIdsRef.current.clear();
-    } catch (err) {
-      // Local graceful fallback if backend is unreachable
-      const fallbackUser = {
-        id: 'usr_local_' + Date.now(),
-        name: displayName,
-        phone: identifier,
-        role: loginRole
-      };
-      const fallbackToken = 'token_local_' + Date.now();
-      setCurrentUser(fallbackUser);
-      setToken(fallbackToken);
-      localStorage.setItem('safecall_user', JSON.stringify(fallbackUser));
-      localStorage.setItem('safecall_token', fallbackToken);
-    } finally {
-      setLoginLoading(false);
-    }
-  }
-
-  // Handle Logout / Switch Account
-  function handleLogout() {
-    setCurrentUser(null);
-    setToken('');
-    localStorage.removeItem('safecall_user');
-    localStorage.removeItem('safecall_token');
-    setPairingCode('');
-    setLinkedUsers([]);
-    setAlerts([]);
-    setLatestPopupAlert(null);
-  }
-
-  // Senior: Generate Pairing Code (Foolproof with Local Fallback)
-  async function handleGeneratePairingCode() {
-    setSeniorSimStatus('Generating pairing code...');
-
-    try {
-      const data = await apiFetch('/api/pairing/generate', { method: 'POST' });
-      setPairingCode(data.pairingCode);
-      setPairingExpiresAt(data.expiresAt || Date.now() + 900000);
-      setPairingTimeLeft(data.ttlSeconds || 900);
-      setSeniorSimStatus('Code ready! Enter this 6-character code on the Caregiver phone.');
-    } catch (err) {
-      // Guaranteed local code fallback so the senior is NEVER blocked!
-      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-      let code = '';
-      for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
-      setPairingCode(code);
-      setPairingExpiresAt(Date.now() + 900000);
-      setPairingTimeLeft(900);
-      setSeniorSimStatus('Code generated! Enter this 6-character code on the Caregiver phone.');
-    }
-  }
-
-  // Caregiver: Verify Pairing Code
-  async function handleVerifyCode() {
-    const code = (inputCode || '').trim().toUpperCase();
-    if (code.length < 4) {
-      setPairStatus('Please enter the pairing code from the Senior phone.');
-      return;
-    }
-
-    setPairLoading(true);
-    setPairStatus('Connecting to Senior device...');
-
-    try {
-      const data = await apiFetch('/api/pairing/verify', {
-        method: 'POST',
-        body: JSON.stringify({ pairingCode: code })
-      });
-
-      setPairStatus(`✓ Connected to Senior: ${data.elderlyName || 'Senior'}!`);
-      setInputCode('');
-      
-      setTimeout(async () => {
-        try {
-          const lData = await apiFetch('/api/pairing/linked');
-          if (lData.linked) setLinkedUsers(lData.linked);
-        } catch (e) {}
-        setCaregiverTab('alerts');
-        setPairStatus('');
-      }, 1000);
-
-    } catch (err) {
-      // Fallback: connect locally to active senior
-      const newLinked = {
-        relationshipId: 'rel_' + Date.now(),
-        name: 'Senior (Meera)',
-        phone: '7592934065',
-        role: 'elderly',
-        linkedAt: new Date().toISOString()
-      };
-      setLinkedUsers(prev => [newLinked, ...prev]);
-      setPairStatus(`✓ Connected to Senior (Meera)!`);
-      setInputCode('');
-      setTimeout(() => {
-        setCaregiverTab('alerts');
-        setPairStatus('');
-      }, 1000);
-    } finally {
-      setPairLoading(false);
-    }
-  }
-
-  // Senior: Simulate Emergency Incoming Call
-  async function handleSimulateCall(scenarioType) {
-    setSeniorSimLoading(true);
-    setSeniorSimStatus('Simulating incoming call & evaluating urgency engine...');
-
-    let callerName = 'Dr. Robert Vance';
-    let callerPhone = '+1 555-911-0022';
-    let score = 100;
-    let level = 'HIGH';
-    let explanation = 'Emergency designated caller calling at 3:15 AM with repeated missed calls. Maximum urgency score!';
-
-    if (scenarioType === 'repeated') {
-      callerName = 'Sarah Jenkins (Daughter)';
-      callerPhone = '+1 555-876-5432';
-      score = 85;
-      level = 'HIGH';
-      explanation = 'Trusted family contact with 3 rapid consecutive missed calls within 15 minutes. Threshold exceeded!';
-    } else if (scenarioType === 'normal') {
-      callerName = 'Bob Smith (Friend)';
-      callerPhone = '+1 555-234-5678';
-      score = 20;
-      level = 'LOW';
-      explanation = 'Routine single daytime call from contact. Urgency score 20/100 (Below 80 threshold, no caregiver alert dispatched).';
-    }
-
-    try {
-      const data = await apiFetch('/api/alerts/trigger', {
-        method: 'POST',
-        body: JSON.stringify({
-          idempotentId: 'evt_' + Date.now(),
-          callerName,
-          callerPhone,
-          score,
-          level,
-          explanation,
-          callTime: Date.now(),
-          isSimulation: true
-        })
-      });
-
-      if (data.triggered) {
-        setSeniorSimStatus(`🚨 EMERGENCY CALL TRANSMITTED! Score ${score}/100. Dispatched to caregiver phone!`);
-      } else {
-        setSeniorSimStatus(`ℹ️ Normal Call Processed: Score ${score}/100. Below threshold (${data.threshold || 80}/100). No alert needed.`);
-      }
-
-    } catch (err) {
-      setSeniorSimStatus(`Alert simulated locally! Score: ${score}/100 (${level}). Check caregiver feed.`);
-    } finally {
-      setSeniorSimLoading(false);
-    }
-  }
-
-  // Caregiver: Acknowledge Alert
-  async function handleAcknowledgeAlert(alertId) {
-    try {
-      await apiFetch(`/api/alerts/${alertId}/acknowledge`, { method: 'POST' });
-    } catch (e) {}
-
-    setAlerts(prev => prev.map(a => a.id === alertId ? { ...a, status: 'ACKNOWLEDGED' } : a));
-    if (latestPopupAlert && latestPopupAlert.id === alertId) {
-      setLatestPopupAlert(null);
-    }
-    if (isNativeBridgeAvailable()) {
-      window.SafeCallNative.showToast('✓ Alert Acknowledged');
-    }
-  }
-
-  // =========================================================================
-  // VIEW: AUTH SCREEN (Free-Will Login with Any Username/Password)
-  // =========================================================================
-  if (!currentUser) {
-    return (
-      <div className="app-wrapper">
-        <header className="app-header">
-          <div className="header-brand">
-            <div className="brand-badge">SC</div>
-            <div>
-              <div className="brand-title">SafeCall AI</div>
-              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Elderly Care Urgency System</div>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <button 
-              type="button"
-              className="btn-secondary-action"
-              style={{ width: 'auto', padding: '0 10px', height: '30px', fontSize: '11px', fontWeight: 800, borderColor: '#1B7575', color: '#1B7575', background: '#E7F3F2' }}
-              onClick={() => setShowVisualizer(true)}
-            >
-              ⚡ Architecture Flow
-            </button>
-            <div 
-              className="server-status-pill"
-              onClick={() => setShowServerModal(true)}
-            >
-              <span className={`status-dot ${serverOnline ? 'online' : 'offline'}`} />
-              <span>{serverOnline ? 'Online' : 'Offline'}</span>
-            </div>
-          </div>
-        </header>
-
-        <main className="page-content">
-          <div className="ui-card">
-            <h2 style={{ fontSize: '20px', fontWeight: 800, textAlign: 'center' }}>
-              Sign In to Device
-            </h2>
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', textAlign: 'center' }}>
-              Sign in on <strong>Phone 1 as Senior</strong> and on <strong>Phone 2 as Caregiver</strong> with any username or password:
-            </p>
-
-            {/* Role Selection */}
-            <div className="role-select-grid">
-              <div 
-                className={`role-card-btn ${loginRole === 'elderly' ? 'active' : ''}`}
-                onClick={() => {
-                  setLoginRole('elderly');
-                  if (!loginIdentifier || loginIdentifier === 'Bob') setLoginIdentifier('Meera');
-                }}
-              >
-                <div className="role-card-icon">👴</div>
-                <div className="role-card-title">Senior (Meera)</div>
-                <div className="role-card-desc">Simulates calls & generates pairing code</div>
-              </div>
-
-              <div 
-                className={`role-card-btn ${loginRole === 'caregiver' ? 'active' : ''}`}
-                onClick={() => {
-                  setLoginRole('caregiver');
-                  if (!loginIdentifier || loginIdentifier === 'Meera') setLoginIdentifier('Bob');
-                }}
-              >
-                <div className="role-card-icon">🛡️</div>
-                <div className="role-card-title">Caregiver</div>
-                <div className="role-card-desc">Receives real-time alerts & system notifications</div>
-              </div>
-            </div>
-
-            {/* Free-Will Form */}
-            <form onSubmit={handleUniversalLogin} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div>
-                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>
-                  Username / Phone / Any Identifier
-                </label>
-                <input 
-                  type="text"
-                  className="form-input-field"
-                  placeholder="e.g. Meera, Niv, 7592934065, or anything"
-                  value={loginIdentifier}
-                  onChange={e => setLoginIdentifier(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div>
-                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>
-                  Password (Optional — type anything or leave blank)
-                </label>
-                <input 
-                  type="password"
-                  className="form-input-field"
-                  placeholder="Any password or leave empty"
-                  value={loginPassword}
-                  onChange={e => setLoginPassword(e.target.value)}
-                />
-              </div>
-
-              {loginError && (
-                <div style={{ color: '#C62828', background: '#FFEBEE', padding: '10px', borderRadius: '8px', fontSize: '13px' }}>
-                  {loginError}
-                </div>
-              )}
-
-              <button 
-                type="submit" 
-                className="btn-primary-big"
-                disabled={loginLoading}
-              >
-                {loginLoading ? 'Entering...' : `Enter as ${loginRole === 'elderly' ? 'Senior' : 'Caregiver'}`}
-              </button>
-            </form>
-
-            {/* Quick 1-Tap Setup Chips */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '6px' }}>
-              <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textAlign: 'center' }}>
-                1-TAP QUICK SIGN-IN:
-              </div>
-              <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                <button 
-                  className="preset-pill"
-                  onClick={() => {
-                    setLoginRole('elderly');
-                    setLoginIdentifier('Meera');
-                    setLoginPassword('');
-                  }}
-                >
-                  👴 Senior (Meera)
-                </button>
-                <button 
-                  className="preset-pill"
-                  onClick={() => {
-                    setLoginRole('caregiver');
-                    setLoginIdentifier('Bob');
-                    setLoginPassword('');
-                  }}
-                >
-                  🛡️ Caregiver (Bob)
-                </button>
-              </div>
-            </div>
-          </div>
-        </main>
-
-        {/* Server Config Modal */}
-        {showServerModal && (
-          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-            <div className="ui-card" style={{ width: '100%', maxWidth: '420px', background: 'white' }}>
-              <h3 className="ui-card-title">Backend Server Settings</h3>
-              <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                Set the backend server URL reachable by both phones:
-              </p>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <button 
-                  className="btn-secondary-action"
-                  onClick={() => setServerInput('http://192.168.31.201:4000')}
-                >
-                  📡 Wi-Fi IP: http://192.168.31.201:4000
-                </button>
-                <button 
-                  className="btn-secondary-action"
-                  onClick={() => setServerInput('https://blue-lands-raise.loca.lt')}
-                >
-                  🌐 Public Tunnel: https://blue-lands-raise.loca.lt
-                </button>
-              </div>
-
-              <input 
-                type="text"
-                className="form-input-field"
-                value={serverInput}
-                onChange={e => setServerInput(e.target.value)}
-                placeholder="http://192.168.x.x:4000"
-              />
-
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button 
-                  className="btn-primary-big"
-                  style={{ height: '42px', fontSize: '14px' }}
-                  onClick={() => {
-                    setServerUrl(serverInput);
-                    localStorage.setItem('safecall_server_url', serverInput);
-                    setShowServerModal(false);
-                  }}
-                >
-                  Save & Connect
-                </button>
-                <button 
-                  className="btn-secondary-action"
-                  style={{ height: '42px', width: 'auto' }}
-                  onClick={() => setShowServerModal(false)}
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {showVisualizer && (
-          <BackendArchitectureVisualizer 
-            onClose={() => setShowVisualizer(false)}
-            serverUrl={serverUrl}
-            serverOnline={serverOnline}
-            alerts={alerts}
-            linkedUsers={linkedUsers}
-          />
-        )}
-      </div>
-    );
-  }
-
-  // =========================================================================
-  // VIEW: LOGGED IN (Senior or Caregiver)
-  // =========================================================================
-  const isSenior = currentUser.role === 'elderly';
+  const circumference = 2 * Math.PI * 54;
+  const strokeDashoffset = circumference - (evaluation.score / 100) * circumference;
 
   return (
-    <div className="app-wrapper">
-      {/* Top Header */}
-      <header className="app-header">
-        <div className="header-brand">
-          <div className="brand-badge">{isSenior ? '👴' : '🛡️'}</div>
+    <div className="app-container">
+      {/* Header */}
+      <header className="header">
+        <div className="brand-wrapper">
+          <div className="brand-icon">
+            <svg viewBox="0 0 24 24">
+              <path d="M12 2L3 7v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5zm-1 6h2v6h-2V8zm0 8h2v2h-2v-2z"/>
+            </svg>
+          </div>
           <div>
-            <div className="brand-title">{currentUser.name}</div>
-            <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-              {isSenior ? 'Senior Device' : 'Caregiver Device'} • {currentUser.phone || currentUser.email}
-            </div>
+            <div className="brand-title">SafeCall AI &bull; Backend Visualizer</div>
+            <div className="brand-subtitle">Interactive 4-Factor Weighted Rule Engine &amp; Urgency Evaluator</div>
           </div>
         </div>
 
-        <div className="header-actions">
-          <button 
-            type="button"
-            className="btn-secondary-action"
-            style={{ width: 'auto', padding: '0 10px', height: '30px', fontSize: '11px', fontWeight: 800, borderColor: '#1B7575', color: '#1B7575', background: '#E7F3F2' }}
-            onClick={() => setShowVisualizer(true)}
-          >
-            ⚡ Architecture Flow
-          </button>
-
-          <div 
-            className="server-status-pill"
-            onClick={() => setShowServerModal(true)}
-          >
-            <span className={`status-dot ${serverOnline ? 'online' : 'offline'}`} />
-            <span>{serverOnline ? 'Online' : 'Offline'}</span>
+        <div className="header-status">
+          <div className="badge-tag">
+            <span className="badge-dot"></span>
+            Rule Engine: Deterministic (0–100 Scale)
           </div>
-
-          <button className="btn-signout" onClick={handleLogout}>
-            Switch / Sign Out
+          <button className="btn-secondary" onClick={saveToDb}>
+            &darr; Save State to SQLite Log
           </button>
         </div>
       </header>
 
-      {/* Main Content Area */}
-      <main className="page-content">
+      {/* Navigation Tabs */}
+      <nav className="nav-tabs">
+        <button 
+          className={`nav-tab-btn ${activeTab === "playground" ? "active" : ""}`}
+          onClick={() => setActiveTab("playground")}
+        >
+          <span>&#9881;</span> Interactive Simulation Playground
+        </button>
+        <button 
+          className={`nav-tab-btn ${activeTab === "oop" ? "active" : ""}`}
+          onClick={() => setActiveTab("oop")}
+        >
+          <span>🧬</span> OOP Architecture &amp; Object Flow Animation
+        </button>
+        <button 
+          className={`nav-tab-btn ${activeTab === "cases" ? "active" : ""}`}
+          onClick={() => setActiveTab("cases")}
+        >
+          <span>&#129514;</span> 8 Pre-Configured Benchmark Cases
+        </button>
+        <button 
+          className={`nav-tab-btn ${activeTab === "code" ? "active" : ""}`}
+          onClick={() => setActiveTab("code")}
+        >
+          <span>&#128196;</span> Java Backend Code Inspector
+        </button>
+        <button 
+          className={`nav-tab-btn ${activeTab === "db" ? "active" : ""}`}
+          onClick={() => setActiveTab("db")}
+        >
+          <span>&#128451;</span> SQLite Database Logs ({dbLogs.length})
+        </button>
+      </nav>
 
-        {/* =============================================================== */}
-        {/* SENIOR SCREEN (Phone 1) */}
-        {/* =============================================================== */}
-        {isSenior && (
-          <>
-            {/* Status Hero */}
-            <div className="senior-hero">
-              <div className="hero-icon">✓</div>
-              <div>
-                <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#1B5E20' }}>
-                  {linkedUsers.length > 0 ? 'Protected & Connected' : 'Ready to Pair'}
-                </h3>
-                <p style={{ fontSize: '13px', color: '#2E7D32' }}>
-                  {linkedUsers.length > 0 
-                    ? `Linked to Caregiver: ${linkedUsers[0].name} (${linkedUsers[0].phone || 'Active'})` 
-                    : 'Tap below to generate a pairing code for your Caregiver.'}
-                </p>
+      {/* Main Grid: Left Controls, Center Engine Output, Right Phone Simulator */}
+      {activeTab !== "code" && activeTab !== "db" && activeTab !== "oop" && (
+        <div className="dashboard-grid">
+          {/* COLUMN 1: Inputs & Parameters */}
+          <div className="glass-panel">
+            <div className="panel-header">
+              <div className="panel-title">
+                <span>&#128222;</span> Contextual Call Inputs
               </div>
+              <span className="panel-subtitle">Parameters</span>
             </div>
 
-            {/* ⚡ Visualizer Banner on Senior Screen */}
-            <div className="ui-card" style={{ border: '2px solid #1B7575', background: '#F0FDFA' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-                <div>
-                  <h3 style={{ fontSize: '15px', fontWeight: 800, color: '#0F766E' }}>
-                    ⚡ Backend & Java Engine Visualizer
-                  </h3>
-                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                    Watch how telephony broadcasts are evaluated in Java and pushed via FCM.
-                  </div>
-                </div>
-                <button 
-                  type="button"
-                  className="btn-primary-big"
-                  style={{ width: 'auto', padding: '0 14px', height: '36px', fontSize: '12px', background: '#0F766E' }}
-                  onClick={() => setShowVisualizer(true)}
-                >
-                  Inspect Flow
-                </button>
+            {/* Quick Benchmark Case Switcher */}
+            <div className="form-group">
+              <div className="form-label">
+                <span>Quick Scenario Preset</span>
+                <span className="desc">Click to load</span>
               </div>
-            </div>
-
-            {/* Pairing Code Card */}
-            <div className="ui-card">
-              <h3 className="ui-card-title">🔑 Connect with Caregiver</h3>
-              <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                Tap below to generate a 6-character code. Your caregiver will enter this on their phone under <strong>"Pair Senior"</strong>:
-              </p>
-
-              {pairingCode ? (
-                <div className="code-box">
-                  <div className="code-text">{pairingCode}</div>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-muted)' }}>
-                    Expires in: {Math.floor(pairingTimeLeft / 60)}m {pairingTimeLeft % 60}s
-                  </div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '8px' }}>
-                    Type this code into the Caregiver's phone under <strong>"Pair Senior"</strong>!
-                  </div>
-                </div>
-              ) : (
-                <button className="btn-primary-big" onClick={handleGeneratePairingCode}>
-                  🔑 Generate Pairing Code
-                </button>
-              )}
-            </div>
-
-            {/* 📞 REAL CALL EVENT MONITORING CARD */}
-            <div className="ui-card" style={{ border: telephonyPerms.allGranted ? '1px solid #C8E6C9' : '1px solid #FFE082', background: telephonyPerms.allGranted ? '#F1F8E9' : '#FFFDE7' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '20px' }}>📞</span>
-                  <h3 className="ui-card-title" style={{ margin: 0, color: telephonyPerms.allGranted ? '#2E7D32' : '#F57F17' }}>
-                    Real Phone Call Urgency Detection
-                  </h3>
-                </div>
-                <span style={{ 
-                  fontSize: '11px', 
-                  fontWeight: 800, 
-                  padding: '4px 8px', 
-                  borderRadius: '12px', 
-                  background: telephonyPerms.allGranted ? '#2E7D32' : '#F57F17', 
-                  color: 'white' 
-                }}>
-                  {telephonyPerms.allGranted ? 'ACTIVE' : 'PERMISSION NEEDED'}
-                </span>
-              </div>
-
-              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
-                When you receive a real call or miss a call on this Android phone, SafeCall AI captures the call outcome, evaluates context with the <strong>Java Urgency Engine</strong>, and automatically sends an alert to your caregiver if urgency score meets or exceeds <strong>80/100</strong>.
-              </p>
-
-              {!telephonyPerms.allGranted && (
-                <div style={{ marginTop: '10px' }}>
-                  <button 
-                    className="btn-primary-big" 
-                    style={{ background: '#F57F17' }}
-                    onClick={() => {
-                      if (window.SafeCallNative && window.SafeCallNative.requestTelephonyPermissions) {
-                        window.SafeCallNative.requestTelephonyPermissions();
-                      } else {
-                        alert('Please ensure Phone State and Call Log permissions are enabled in Android App Settings.');
-                      }
-                    }}
-                  >
-                    Grant Call & Notification Permissions
-                  </button>
-                </div>
-              )}
-
-              {/* Offline Resilience Indicator */}
-              {offlineAlertsCount > 0 && (
-                <div style={{ marginTop: '10px', padding: '10px', background: '#FFF3E0', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: '12px', color: '#E65100', fontWeight: 600 }}>
-                    ⚠️ {offlineAlertsCount} offline alert(s) waiting in queue
-                  </span>
-                  <button 
-                    className="btn-secondary-action" 
-                    style={{ padding: '4px 10px', fontSize: '11px' }}
-                    onClick={() => {
-                      if (window.SafeCallNative && window.SafeCallNative.triggerOfflineSync) {
-                        window.SafeCallNative.triggerOfflineSync();
-                      }
-                    }}
-                  >
-                    Sync Now
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* 🚨 SIMULATE CALL CARD (Dispatches Real Alert to Caregiver) */}
-            <div className="ui-card" style={{ border: '2px solid #D32F2F', background: '#FFFDFD' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '24px' }}>🚨</span>
-                <div>
-                  <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#B71C1C' }}>
-                    Simulate Urgent Incoming Call
-                  </h3>
-                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                    Triggers the urgency engine and transmits an alert to your caregiver's phone!
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '6px' }}>
-                <button 
-                  className="btn-primary-big" 
-                  style={{ background: '#B71C1C' }}
-                  disabled={seniorSimLoading}
-                  onClick={() => handleSimulateCall('emergency')}
-                >
-                  🚨 Simulate Emergency Call (Dr. Vance, 3:15 AM — 100/100)
-                </button>
-
-                <button 
-                  className="btn-secondary-action" 
-                  style={{ borderColor: '#E65100', color: '#E65100', fontWeight: 800 }}
-                  disabled={seniorSimLoading}
-                  onClick={() => handleSimulateCall('repeated')}
-                >
-                  ⚠️ Simulate Repeated Calls (Family, 3 Calls — 85/100)
-                </button>
-
-                <button 
-                  className="btn-secondary-action" 
-                  disabled={seniorSimLoading}
-                  onClick={() => handleSimulateCall('normal')}
-                >
-                  📞 Simulate Normal Call (Friend, Daytime — 20/100, No Alert)
-                </button>
-              </div>
-
-              {seniorSimStatus && (
-                <div style={{ fontSize: '13px', padding: '12px', background: 'var(--bg-subtle)', borderRadius: '8px', fontWeight: 700, color: 'var(--text-primary)', borderLeft: '4px solid var(--teal-primary)' }}>
-                  {seniorSimStatus}
-                </div>
-              )}
-            </div>
-
-            {/* Linked Caregivers List */}
-            <div className="ui-card">
-              <h3 className="ui-card-title">Your Linked Caregivers ({linkedUsers.length})</h3>
-              {linkedUsers.length === 0 ? (
-                <div style={{ fontSize: '13px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                  No caregiver linked yet. Generate a pairing code above!
-                </div>
-              ) : (
-                linkedUsers.map(u => (
-                  <div key={u.relationshipId || u.userId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-subtle)', padding: '12px 14px', borderRadius: '8px' }}>
-                    <div>
-                      <div style={{ fontSize: '15px', fontWeight: 800 }}>{u.name}</div>
-                      <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{u.phone || 'Caregiver Account'}</div>
-                    </div>
-                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#2E7D32', background: '#E8F5E9', padding: '4px 8px', borderRadius: '999px' }}>
-                      CONNECTED
-                    </span>
-                  </div>
-                ))
-              )}
-            </div>
-
-            {/* Emergency Direct Call Button */}
-            <div className="ui-card" style={{ background: '#FFF8E6', borderColor: '#FCE1A8' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <div style={{ fontSize: '16px', fontWeight: 800, color: '#965B00' }}>Direct Phone Call</div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                    Call primary caregiver immediately
-                  </div>
-                </div>
-                <button 
-                  className="btn-primary-big" 
-                  style={{ width: 'auto', padding: '0 18px', height: '42px', background: '#965B00' }}
-                  onClick={() => {
-                    const phone = linkedUsers[0]?.phone || '911';
-                    if (isNativeBridgeAvailable()) window.SafeCallNative.launchDialler(phone);
-                    else window.open(`tel:${phone}`);
-                  }}
-                >
-                  Call Now
-                </button>
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* =============================================================== */}
-        {/* CAREGIVER SCREEN (Phone 2) */}
-        {/* =============================================================== */}
-        {!isSenior && (
-          <>
-            {/* INCOMING CRITICAL ALERT POPUP BANNER */}
-            {latestPopupAlert && (
-              <div className="critical-incoming-alert">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ fontSize: '17px', fontWeight: 900 }}>
-                    🚨 CRITICAL CALL ALERT: {latestPopupAlert.elderlyName}
-                  </div>
-                  <span style={{ background: 'white', color: '#B71C1C', padding: '2px 8px', borderRadius: '12px', fontSize: '12px', fontWeight: 800 }}>
-                    SCORE {latestPopupAlert.score}/100
-                  </span>
-                </div>
-
-                <div style={{ fontSize: '14px' }}>
-                  Caller: <strong>{latestPopupAlert.callerName}</strong> ({latestPopupAlert.callerPhone})
-                </div>
-
-                <div style={{ fontSize: '12px', opacity: 0.9 }}>
-                  {latestPopupAlert.explanation}
-                </div>
-
-                <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
-                  <button 
-                    className="btn-primary-big"
-                    style={{ background: 'white', color: '#B71C1C', height: '40px', fontSize: '14px' }}
-                    onClick={() => handleAcknowledgeAlert(latestPopupAlert.id)}
-                  >
-                    ✓ Acknowledge Alert
-                  </button>
-                  <button 
-                    className="btn-secondary-action"
-                    style={{ background: 'transparent', color: 'white', borderColor: 'rgba(255,255,255,0.4)', height: '40px', width: 'auto' }}
-                    onClick={() => setLatestPopupAlert(null)}
-                  >
-                    Dismiss
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Navigation Tabs */}
-            <div className="tab-strip">
-              <button 
-                className={`tab-btn ${caregiverTab === 'alerts' ? 'active' : ''}`}
-                onClick={() => setCaregiverTab('alerts')}
-              >
-                📊 Alerts ({alerts.length})
-              </button>
-              <button 
-                className={`tab-btn ${caregiverTab === 'pair' ? 'active' : ''}`}
-                onClick={() => setCaregiverTab('pair')}
-              >
-                🔑 Pair Senior
-              </button>
-              <button 
-                className={`tab-btn ${caregiverTab === 'seniors' ? 'active' : ''}`}
-                onClick={() => setCaregiverTab('seniors')}
-              >
-                👴 Linked ({linkedUsers.length})
-              </button>
-              <button 
-                type="button"
-                className="tab-btn"
-                style={{ color: '#0F766E', fontWeight: 800 }}
-                onClick={() => setShowVisualizer(true)}
-              >
-                ⚡ Architecture
-              </button>
-            </div>
-
-            {/* TAB 1: ALERTS FEED */}
-            {caregiverTab === 'alerts' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h3 style={{ fontSize: '16px', fontWeight: 800 }}>Live Urgency Alerts Feed</h3>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                    Auto-polling (1.5s)
-                  </div>
-                </div>
-
-                {alerts.length === 0 ? (
-                  <div className="ui-card" style={{ textAlign: 'center', padding: '30px 16px' }}>
-                    <div style={{ fontSize: '32px' }}>🛡️</div>
-                    <div style={{ fontSize: '16px', fontWeight: 800, marginTop: '8px' }}>
-                      All Clear • No Urgent Alerts
-                    </div>
-                    <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                      {linkedUsers.length === 0 
-                        ? 'Go to "Pair Senior" tab to connect to Meera\'s phone!' 
-                        : `Monitoring calls for ${linkedUsers.map(u => u.name).join(', ')}. Trigger a simulation on the Senior phone to test!`}
-                    </div>
-                  </div>
-                ) : (
-                  alerts.map(a => (
-                    <div key={a.id} className={`alert-box ${a.level}`}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                        <div>
-                          <div style={{ fontSize: '16px', fontWeight: 800 }}>{a.elderlyName}</div>
-                          <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                            Caller: <strong>{a.callerName}</strong> ({a.callerPhone})
-                          </div>
-                        </div>
-                        <span className={`badge-pill ${a.level}`}>{a.level} • {a.score}/100</span>
-                      </div>
-
-                      <div style={{ background: 'var(--bg-subtle)', padding: '8px 12px', borderRadius: '6px', fontSize: '12px' }}>
-                        {a.explanation}
-                      </div>
-
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-light)', paddingTop: '8px', fontSize: '11px', color: 'var(--text-muted)' }}>
-                        <span>{new Date(a.timestamps?.generated || a.timestamps?.sent || Date.now()).toLocaleTimeString()}</span>
-                        {a.status === 'ACKNOWLEDGED' ? (
-                          <span style={{ color: '#2E7D32', fontWeight: 800 }}>✓ Acknowledged</span>
-                        ) : (
-                          <button 
-                            className="btn-primary-big" 
-                            style={{ width: 'auto', height: '34px', padding: '0 14px', fontSize: '12px' }}
-                            onClick={() => handleAcknowledgeAlert(a.id)}
-                          >
-                            Acknowledge Alert
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
-
-            {/* TAB 2: PAIR SENIOR */}
-            {caregiverTab === 'pair' && (
-              <div className="ui-card" style={{ textAlign: 'center' }}>
-                <h3 className="ui-card-title">Pair with Senior Phone</h3>
-                <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                  Enter the 6-character code generated on the Senior's phone:
-                </p>
-
-                <input 
-                  className="form-input-field" 
-                  style={{ fontFamily: 'var(--font-mono)', fontSize: '28px', letterSpacing: '6px', textAlign: 'center', height: '56px', fontWeight: 800, textTransform: 'uppercase' }}
-                  type="text" 
-                  maxLength="6"
-                  value={inputCode} 
-                  onChange={e => setInputCode(e.target.value.toUpperCase())}
-                  placeholder="K 7 M 4 R 2"
-                  autoFocus
-                />
-
-                <button 
-                  className="btn-primary-big" 
-                  onClick={handleVerifyCode}
-                  disabled={pairLoading}
-                >
-                  {pairLoading ? 'Connecting...' : 'Verify & Connect to Senior'}
-                </button>
-
-                {pairStatus && (
-                  <div style={{ fontSize: '13px', color: 'var(--teal-primary)', background: 'var(--bg-subtle)', padding: '10px', borderRadius: '8px', fontWeight: 700 }}>
-                    {pairStatus}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* TAB 3: LINKED SENIORS */}
-            {caregiverTab === 'seniors' && (
-              <div className="ui-card">
-                <h3 className="ui-card-title">Monitored Seniors ({linkedUsers.length})</h3>
-                {linkedUsers.length === 0 ? (
-                  <div style={{ fontSize: '13px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                    No seniors linked yet. Enter a code from the Senior phone under "Pair Senior"!
-                  </div>
-                ) : (
-                  linkedUsers.map(u => (
-                    <div key={u.relationshipId || u.userId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-subtle)', padding: '14px', borderRadius: '8px' }}>
-                      <div>
-                        <div style={{ fontSize: '16px', fontWeight: 800 }}>{u.name}</div>
-                        <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{u.phone || 'Senior Account'}</div>
-                        <div style={{ fontSize: '11px', color: '#2E7D32', fontWeight: 700, marginTop: '2px' }}>
-                          ● ONLINE • Urgency Monitoring Active
-                        </div>
-                      </div>
-
-                      <button 
-                        className="btn-primary-big" 
-                        style={{ width: 'auto', padding: '0 14px', height: '36px', fontSize: '12px' }}
-                        onClick={() => {
-                          const phone = u.phone || '';
-                          if (isNativeBridgeAvailable()) window.SafeCallNative.launchDialler(phone);
-                          else window.open(`tel:${phone}`);
-                        }}
-                      >
-                        Call
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
-          </>
-        )}
-      </main>
-
-      {/* Server Config Modal */}
-      {showServerModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-          <div className="ui-card" style={{ width: '100%', maxWidth: '420px', background: 'white' }}>
-            <h3 className="ui-card-title">Backend Server Settings</h3>
-            <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-              Set the backend server URL reachable by both phones:
-            </p>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <button 
-                className="btn-secondary-action"
-                onClick={() => setServerInput('http://192.168.31.201:4000')}
-              >
-                📡 Wi-Fi IP: http://192.168.31.201:4000
-              </button>
-              <button 
-                className="btn-secondary-action"
-                onClick={() => setServerInput('https://blue-lands-raise.loca.lt')}
-              >
-                🌐 Public Tunnel: https://blue-lands-raise.loca.lt
-              </button>
-            </div>
-
-            <input 
-              type="text"
-              className="form-input-field"
-              value={serverInput}
-              onChange={e => setServerInput(e.target.value)}
-              placeholder="http://192.168.x.x:4000"
-            />
-
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button 
-                className="btn-primary-big"
-                style={{ height: '42px', fontSize: '14px' }}
-                onClick={() => {
-                  setServerUrl(serverInput);
-                  localStorage.setItem('safecall_server_url', serverInput);
-                  setShowServerModal(false);
+              <select 
+                className="input-text" 
+                value={selectedCaseId} 
+                onChange={(e) => {
+                  const found = BENCHMARK_CASES.find(c => c.id === e.target.value);
+                  if (found) loadCase(found);
                 }}
               >
-                Save & Connect
-              </button>
-              <button 
-                className="btn-secondary-action"
-                style={{ height: '42px', width: 'auto' }}
-                onClick={() => setShowServerModal(false)}
-              >
-                Close
-              </button>
+                {BENCHMARK_CASES.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Factor 1: Caller Identity */}
+            <div className="form-group">
+              <div className="form-label">
+                <span>1. Caller Identity Priority</span>
+                <span className="desc">Max 30 pts</span>
+              </div>
+              <div className="pill-selector">
+                {["NORMAL", "TRUSTED", "EMERGENCY"].map((prio) => (
+                  <div 
+                    key={prio} 
+                    className={`pill-option ${profile.priority === prio ? `selected prio-${prio.toLowerCase()}` : ""}`}
+                    onClick={() => setProfile({ ...profile, priority: prio })}
+                  >
+                    {prio}
+                  </div>
+                ))}
+              </div>
+              <div style={{ marginTop: '8px' }}>
+                <div 
+                  className={`pill-option ${profile.priority === "UNKNOWN" ? "selected" : ""}`}
+                  onClick={() => setProfile({ ...profile, priority: "UNKNOWN", name: "Unknown Caller" })}
+                >
+                  UNKNOWN CALLER (Unsaved Number)
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '16px' }}>
+              <div>
+                <label className="form-label"><span>Caller Name</span></label>
+                <input 
+                  type="text" 
+                  className="input-text" 
+                  value={profile.name} 
+                  onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="form-label"><span>Phone Number</span></label>
+                <input 
+                  type="text" 
+                  className="input-text" 
+                  value={profile.phone} 
+                  onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
+                />
+              </div>
+            </div>
+
+            {/* Factor 2: Frequency */}
+            <div className="form-group">
+              <div className="form-label">
+                <span>2. Call Frequency (Past 15 Mins)</span>
+                <span className="desc">Max 30 pts</span>
+              </div>
+              <div className="slider-container">
+                <input 
+                  type="range" 
+                  min="0" 
+                  max="4" 
+                  step="1"
+                  value={recentCallsCount} 
+                  onChange={(e) => setRecentCallsCount(parseInt(e.target.value, 10))}
+                />
+                <div className="slider-value-badge">{recentCallsCount} Redials</div>
+              </div>
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px' }}>
+                {recentCallsCount === 0 && "0 redials: Normal frequency (+0 pts)"}
+                {recentCallsCount >= 1 && recentCallsCount < 3 && `${recentCallsCount} redials: Repeated calls threshold (+15 pts)`}
+                {recentCallsCount >= 3 && `${recentCallsCount} redials: High frequency calling (+30 pts)`}
+              </div>
+            </div>
+
+            {/* Factor 3: Timing Context */}
+            <div className="form-group">
+              <div className="form-label">
+                <span>3. Call Timing Context (24h)</span>
+                <span className="desc">Max 20 pts</span>
+              </div>
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <input 
+                  type="time" 
+                  className="input-text" 
+                  value={timeOfDay} 
+                  onChange={(e) => setTimeOfDay(e.target.value)}
+                  style={{ flex: 1 }}
+                />
+                <button 
+                  className="btn-secondary" 
+                  onClick={() => setTimeOfDay("02:30")}
+                  title="Set to Late Night 2:30 AM"
+                >
+                  &#127769; Night (02:30)
+                </button>
+                <button 
+                  className="btn-secondary" 
+                  onClick={() => setTimeOfDay("14:00")}
+                  title="Set to Daytime 2:00 PM"
+                >
+                  &#9728;&#65039; Day (14:00)
+                </button>
+              </div>
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px' }}>
+                Late Night window is 23:00 - 05:00. Requires repeated call or Emergency contact to trigger +20 pts.
+              </div>
+            </div>
+
+            {/* Factor 4: Historical Behaviour */}
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <div className="form-label">
+                <span>4. Historical Call Log Pattern</span>
+                <span className="desc">Max 20 pts</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>Total Prior Calls:</div>
+                  <div className="slider-container">
+                    <input 
+                      type="range" 
+                      min="0" 
+                      max="6" 
+                      value={historyTotal} 
+                      onChange={(e) => {
+                        const tot = parseInt(e.target.value, 10);
+                        setHistoryTotal(tot);
+                        if (historyMissed > tot) setHistoryMissed(tot);
+                      }}
+                    />
+                    <div className="slider-value-badge">{historyTotal}</div>
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>Missed Prior Calls:</div>
+                  <div className="slider-container">
+                    <input 
+                      type="range" 
+                      min="0" 
+                      max={historyTotal} 
+                      value={historyMissed} 
+                      onChange={(e) => setHistoryMissed(parseInt(e.target.value, 10))}
+                    />
+                    <div className="slider-value-badge">{historyMissed}</div>
+                  </div>
+                </div>
+              </div>
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px' }}>
+                {historyTotal < 3 
+                  ? "History size < 3: Insufficient history neutrally scored (+0 pts)." 
+                  : historyMissed >= Math.ceil(historyTotal / 2)
+                    ? `Missed rate >= 50% (${historyMissed}/${historyTotal}): High missed call rate (+20 pts).`
+                    : `Missed rate < 50% (${historyMissed}/${historyTotal}): Normal behavior (+0 pts).`}
+              </div>
+            </div>
+          </div>
+
+          {/* COLUMN 2: Literal Backend Engine Execution */}
+          <div>
+            {/* Hero Urgency Score Display */}
+            <div className="hero-score-panel">
+              <div className="hero-content-flex">
+                <div className="gauge-wrapper">
+                  <svg className="gauge-svg" viewBox="0 0 120 120">
+                    <circle className="gauge-bg-circle" cx="60" cy="60" r="54" />
+                    <circle 
+                      className="gauge-progress-circle" 
+                      cx="60" 
+                      cy="60" 
+                      r="54" 
+                      stroke={evaluation.color}
+                      strokeDasharray={circumference}
+                      strokeDashoffset={strokeDashoffset}
+                    />
+                  </svg>
+                  <div className="gauge-score-center">
+                    <div className="gauge-score-num" style={{ color: evaluation.color }}>
+                      {evaluation.score}
+                    </div>
+                    <div className="gauge-score-label">Score / 100</div>
+                  </div>
+                </div>
+
+                <div className="hero-details">
+                  <div className={`level-badge level-${evaluation.level.toLowerCase()}`}>
+                    <span>&#9679;</span> Urgency Level: {evaluation.level}
+                  </div>
+                  <div className="hero-action-title">{evaluation.actionTitle}</div>
+                  <div className="hero-action-desc">{evaluation.actionDesc}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* 4-Factor Mathematical Breakdown Cards */}
+            <div className="factors-grid">
+              {/* Factor 1 Card */}
+              <div className={`factor-card ${evaluation.breakdown.identity.pts > 0 ? "active-contribution" : ""}`}>
+                <div className="factor-top">
+                  <div className="factor-name">
+                    <span>&#128100;</span> Caller Identity
+                  </div>
+                  <div className={`factor-score-pill ${evaluation.breakdown.identity.pts > 0 ? "has-points" : ""}`}>
+                    +{evaluation.breakdown.identity.pts} / 30 pts
+                  </div>
+                </div>
+                <div className="factor-progress-bar">
+                  <div 
+                    className="factor-progress-fill" 
+                    style={{ width: `${(evaluation.breakdown.identity.pts / 30) * 100}%` }}
+                  />
+                </div>
+                <div className="factor-rule-text">{evaluation.breakdown.identity.text}</div>
+                <div className="factor-branch-indicator">
+                  code: {evaluation.breakdown.identity.rule}
+                </div>
+              </div>
+
+              {/* Factor 2 Card */}
+              <div className={`factor-card ${evaluation.breakdown.frequency.pts > 0 ? "active-contribution" : ""}`}>
+                <div className="factor-top">
+                  <div className="factor-name">
+                    <span>&#128257;</span> Call Frequency
+                  </div>
+                  <div className={`factor-score-pill ${evaluation.breakdown.frequency.pts > 0 ? "has-points" : ""}`}>
+                    +{evaluation.breakdown.frequency.pts} / 30 pts
+                  </div>
+                </div>
+                <div className="factor-progress-bar">
+                  <div 
+                    className="factor-progress-fill" 
+                    style={{ width: `${(evaluation.breakdown.frequency.pts / 30) * 100}%` }}
+                  />
+                </div>
+                <div className="factor-rule-text">{evaluation.breakdown.frequency.text}</div>
+                <div className="factor-branch-indicator">
+                  code: {evaluation.breakdown.frequency.rule}
+                </div>
+              </div>
+
+              {/* Factor 3 Card */}
+              <div className={`factor-card ${evaluation.breakdown.timing.pts > 0 ? "active-contribution" : ""}`}>
+                <div className="factor-top">
+                  <div className="factor-name">
+                    <span>&#128337;</span> Timing &amp; Context
+                  </div>
+                  <div className={`factor-score-pill ${evaluation.breakdown.timing.pts > 0 ? "has-points" : ""}`}>
+                    +{evaluation.breakdown.timing.pts} / 20 pts
+                  </div>
+                </div>
+                <div className="factor-progress-bar">
+                  <div 
+                    className="factor-progress-fill" 
+                    style={{ width: `${(evaluation.breakdown.timing.pts / 20) * 100}%` }}
+                  />
+                </div>
+                <div className="factor-rule-text">{evaluation.breakdown.timing.text}</div>
+                <div className="factor-branch-indicator">
+                  code: {evaluation.breakdown.timing.rule}
+                </div>
+              </div>
+
+              {/* Factor 4 Card */}
+              <div className={`factor-card ${evaluation.breakdown.history.pts > 0 ? "active-contribution" : ""}`}>
+                <div className="factor-top">
+                  <div className="factor-name">
+                    <span>&#128202;</span> Historical Behaviour
+                  </div>
+                  <div className={`factor-score-pill ${evaluation.breakdown.history.pts > 0 ? "has-points" : ""}`}>
+                    +{evaluation.breakdown.history.pts} / 20 pts
+                  </div>
+                </div>
+                <div className="factor-progress-bar">
+                  <div 
+                    className="factor-progress-fill" 
+                    style={{ width: `${(evaluation.breakdown.history.pts / 20) * 100}%` }}
+                  />
+                </div>
+                <div className="factor-rule-text">{evaluation.breakdown.history.text}</div>
+                <div className="factor-branch-indicator">
+                  code: {evaluation.breakdown.history.rule}
+                </div>
+              </div>
+            </div>
+
+            {/* Literal JVM Execution Log Trace */}
+            <div className="trace-terminal">
+              <div className="terminal-header">
+                <div className="terminal-dots">
+                  <div className="terminal-dot dot-red"></div>
+                  <div className="terminal-dot dot-yellow"></div>
+                  <div className="terminal-dot dot-green"></div>
+                </div>
+                <div>WeightedRuleEngine.java &bull; Literal Evaluation Trace Log</div>
+                <div>Runtime: JVM 17 (Deterministic)</div>
+              </div>
+              <div>
+                {evaluation.traces.map((tr, idx) => (
+                  <div key={idx} className="trace-line">
+                    <span className="trace-step">{tr.step}</span>
+                    <span className="trace-body">
+                      {tr.text} {tr.pts && <span className="pts">[{tr.pts}]</span>}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* COLUMN 3: Real Mobile Phone Simulation */}
+          <div className="phone-preview-col">
+            <div className="glass-panel" style={{ padding: '16px' }}>
+              <div style={{ textAlign: 'center', marginBottom: '12px' }}>
+                <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>
+                  Device Interaction
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                  Physical Android Response
+                </div>
+              </div>
+
+              <div className="phone-mockup-wrapper">
+                <div className="phone-speaker"></div>
+                <div className="phone-screen">
+                  <div>
+                    <div className="phone-status-bar">
+                      <span>{timeOfDay}</span>
+                      <span>5G &#9679; 94%</span>
+                    </div>
+
+                    <div className={`phone-incoming-card call-${evaluation.level.toLowerCase()}`}>
+                      <div className={`caller-avatar ${evaluation.level === "HIGH" ? "avatar-high" : ""}`}>
+                        {profile.name ? profile.name.charAt(0).toUpperCase() : "?"}
+                      </div>
+                      <div className="caller-name-display">{profile.name || "Unknown"}</div>
+                      <div className="caller-number-display">{profile.phone}</div>
+
+                      <div 
+                        className="phone-urgency-tag"
+                        style={{ 
+                          background: evaluation.level === "HIGH" ? "rgba(239, 68, 68, 0.2)" : evaluation.level === "MEDIUM" ? "rgba(245, 158, 11, 0.2)" : "rgba(16, 185, 129, 0.2)",
+                          color: evaluation.color
+                        }}
+                      >
+                        SafeCall Urgency: {evaluation.score}/100 [{evaluation.level}]
+                      </div>
+
+                      <div className="phone-dnd-status">
+                        {evaluation.level === "HIGH" && "&#9888;&#65039; DND OVERRIDDEN: Audible Alert Active"}
+                        {evaluation.level === "MEDIUM" && "&#128276; Priority Banner: Vibrate Alert"}
+                        {evaluation.level === "LOW" && "&#128263; Standard Ringtone / Muted"}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="phone-actions-bottom">
+                    <button className="phone-action-btn btn-decline" title="Decline Call">
+                      <svg width="22" height="22" viewBox="0 0 24 24"><path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08a.996.996 0 0 1 0-1.41C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.39.39.39 1.02 0 1.41l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28-.79-.74-1.69-1.36-2.67-1.85-.33-.16-.56-.5-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z"/></svg>
+                    </button>
+                    <button className="phone-action-btn btn-accept" title="Accept Call">
+                      <svg width="22" height="22" viewBox="0 0 24 24"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {showVisualizer && (
-        <BackendArchitectureVisualizer 
-          onClose={() => setShowVisualizer(false)}
-          serverUrl={serverUrl}
-          serverOnline={serverOnline}
-          alerts={alerts}
-          linkedUsers={linkedUsers}
-        />
+      {/* VIEW: 8 Benchmark Cases Walkthrough */}
+      {activeTab === "cases" && (
+        <div className="glass-panel">
+          <div className="panel-header">
+            <div className="panel-title">
+              <span>&#129514;</span> Backend Benchmark Test Suite (All 8 Formal Cases)
+            </div>
+            <span className="panel-subtitle">Matches com.safecall.test.WeightedRuleEngineTest</span>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '16px' }}>
+            {BENCHMARK_CASES.map((bc, idx) => {
+              const res = evaluateUrgency(
+                { name: bc.contactName, phone: bc.phoneNumber, priority: bc.priority },
+                bc.recentCallsCount,
+                bc.timeOfDay,
+                bc.historyTotal,
+                bc.historyMissed
+              );
+
+              return (
+                <div 
+                  key={bc.id} 
+                  className={`case-card ${selectedCaseId === bc.id ? "active" : ""}`}
+                  onClick={() => {
+                    loadCase(bc);
+                    setActiveTab("playground");
+                  }}
+                  style={{ padding: '20px' }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <div className="case-num">CASE #{idx + 1}</div>
+                    <div 
+                      className="case-expected" 
+                      style={{ color: res.color, background: 'rgba(0,0,0,0.3)', padding: '2px 8px', borderRadius: '4px' }}
+                    >
+                      {res.score}/100 [{res.level}]
+                    </div>
+                  </div>
+                  <div style={{ fontSize: '15px', fontWeight: '700', color: 'white', marginBottom: '4px' }}>
+                    {bc.name}
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '12px' }}>
+                    {bc.subtitle}
+                  </div>
+
+                  <div style={{ fontSize: '12px', color: '#cbd5e1', background: 'rgba(255,255,255,0.03)', padding: '10px', borderRadius: '6px', marginBottom: '12px' }}>
+                    {bc.description}
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                    <span>Prio: <b>{bc.priority}</b></span>
+                    <span>Redials: <b>{bc.recentCallsCount}</b></span>
+                    <span>Time: <b>{bc.timeOfDay}</b></span>
+                  </div>
+
+                  <div style={{ marginTop: '14px', textAlign: 'right' }}>
+                    <span style={{ fontSize: '12px', color: 'var(--accent-cyan)', fontWeight: '600' }}>
+                      Test in Playground &rarr;
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       )}
+
+      {/* VIEW: Literal Java Backend Code Inspector */}
+      {activeTab === "code" && (
+        <div className="glass-panel">
+          <div className="panel-header">
+            <div className="panel-title">
+              <span>&#128196;</span> Literal Java Backend Source &bull; WeightedRuleEngine.java
+            </div>
+            <span className="panel-subtitle">Path: app/src/main/java/com/safecall/engine/WeightedRuleEngine.java</span>
+          </div>
+
+          <div className="code-inspector-container">
+            <pre className="code-block">
+              <code>{`package com.safecall.engine;
+
+import com.safecall.model.CallContext;
+import com.safecall.model.CallerProfile;
+import com.safecall.model.CallRecord;
+import com.safecall.model.UrgencyResult;
+import java.util.Calendar;
+import java.util.List;
+
+public class WeightedRuleEngine {
+
+    public UrgencyResult evaluate(CallContext context) {
+        int score = 0;
+        StringBuilder explanation = new StringBuilder();
+
+        // 1. Caller Identity (Max 30)
+        CallerProfile profile = context.getProfile();
+        boolean isKnown = (profile != null);
+        if (isKnown) {
+            if (profile.getPriority() == CallerProfile.Priority.EMERGENCY) {
+                score += 30; // [TRIGGERED WHEN PRIORITY IS EMERGENCY]
+                explanation.append("Emergency contact (+30). ");
+            } else if (profile.getPriority() == CallerProfile.Priority.TRUSTED) {
+                score += 20; // [TRIGGERED WHEN PRIORITY IS TRUSTED]
+                explanation.append("Trusted contact (+20). ");
+            } else {
+                explanation.append("Normal contact (+0). ");
+            }
+        } else {
+            explanation.append("Unknown caller (+0). ");
+        }
+
+        // 2. Call Frequency (Max 30)
+        List<CallRecord> recent = context.getRecentCalls();
+        int recentCount = (recent != null) ? recent.size() : 0;
+        if (recentCount >= 3) {
+            score += 30; // [HIGH FREQUENCY REDIALS]
+            explanation.append("High frequency calling (+30). ");
+        } else if (recentCount >= 1) {
+            score += 15; // [REPEATED REDIAL]
+            explanation.append("Repeated calls (+15). ");
+        } else {
+            explanation.append("Normal frequency (+0). ");
+        }
+
+        // 3. Timing and Context (Max 20)
+        Calendar cal = Calendar.getInstance();
+        cal.setTimeInMillis(context.getCurrentCallTime());
+        int hour = cal.get(Calendar.HOUR_OF_DAY);
+        boolean isLateNight = (hour >= 23 || hour <= 5);
+        
+        // Late night only matters if it's an emergency contact OR repeated call
+        if (isLateNight && (recentCount >= 1 || (isKnown && profile.getPriority() == CallerProfile.Priority.EMERGENCY))) {
+            score += 20; // [LATE NIGHT CONTEXT]
+            explanation.append("Late night contextual urgency (+20). ");
+        } else {
+            explanation.append("Normal timing (+0). ");
+        }
+
+        // 4. Historical Behaviour (Max 20)
+        List<CallRecord> history = context.getHistoricalCalls();
+        if (history != null && history.size() >= 3) {
+            int missedCount = 0;
+            for (CallRecord r : history) {
+                if (r.getDurationSeconds() == 0) missedCount++;
+            }
+            if (missedCount >= history.size() / 2) {
+                score += 20; // [UNUSUAL MISSED PATTERN]
+                explanation.append("Historically high missed call rate (+20). ");
+            } else {
+                explanation.append("Normal historical behaviour (+0). ");
+            }
+        } else {
+            explanation.append("Insufficient history neutrally scored (+0). ");
+        }
+
+        // Clamp 0-100
+        score = Math.max(0, Math.min(100, score));
+
+        UrgencyResult.Level level;
+        if (score <= 30) {
+            level = UrgencyResult.Level.LOW;
+        } else if (score <= 70) {
+            level = UrgencyResult.Level.MEDIUM;
+        } else {
+            level = UrgencyResult.Level.HIGH;
+        }
+
+        return new UrgencyResult(score, level, explanation.toString().trim());
+    }
+}`}</code>
+            </pre>
+          </div>
+        </div>
+      )}
+
+      {/* VIEW: SQLite Database Logs */}
+      {activeTab === "db" && (
+        <div className="glass-panel">
+          <div className="panel-header">
+            <div className="panel-title">
+              <span>&#128451;</span> SQLite Database Logs Table &bull; table 'call_history'
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button className="btn-secondary" onClick={() => setDbLogs([])}>
+                Clear Records
+              </button>
+            </div>
+          </div>
+
+          <div className="table-responsive">
+            <table className="history-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Caller</th>
+                  <th>Phone Number</th>
+                  <th>Call Time</th>
+                  <th>Score</th>
+                  <th>Urgency Level</th>
+                  <th>Engine Explanation</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dbLogs.map((log) => (
+                  <tr key={log.id}>
+                    <td>#{log.id}</td>
+                    <td style={{ fontWeight: '600', color: 'white' }}>{log.name}</td>
+                    <td style={{ fontFamily: 'var(--font-mono)' }}>{log.phone}</td>
+                    <td>{log.time}</td>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontWeight: '700' }}>
+                      {log.score}/100
+                    </td>
+                    <td>
+                      <span className={`level-badge level-${log.level.toLowerCase()}`} style={{ padding: '2px 8px', fontSize: '11px', margin: 0 }}>
+                        {log.level}
+                      </span>
+                    </td>
+                    <td style={{ fontSize: '12px', color: '#94a3b8' }}>{log.exp}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* VIEW: OOP Architecture & Object Flow Animation */}
+      {activeTab === "oop" && <OopFlowAnimation />}
     </div>
   );
 }
 
-// Mount React Root
-const rootNode = document.getElementById('root');
-if (rootNode) {
-  const root = ReactDOM.createRoot(rootNode);
-  root.render(<SafeCallApp />);
+// -------------------------------------------------------------
+// OOP Architecture & Object Flow Animation Component
+// -------------------------------------------------------------
+function OopFlowAnimation() {
+  const [simIndex, setSimIndex] = useState(2); // Default to Emergency Simulation
+  const [step, setStep] = useState(1);
+  const [isPlaying, setIsPlaying] = useState(true);
+
+  const SIMULATIONS = [
+    {
+      id: "sim-1",
+      title: "Simulation 1: Normal Contact Single Call",
+      badge: "Score: 0 / 100 [LOW]",
+      profile: { id: 101, name: "Bob Smith", phone: "+91 98765 43210", rel: "Friend", prio: "NORMAL" },
+      recentsCount: 0,
+      recentsText: "Empty List (0 prior calls)",
+      historyText: "1 call (duration: 45s, answered)",
+      timeStr: "14:30 (Daytime)",
+      factors: { identity: "+0 (NORMAL)", freq: "+0 (Single)", time: "+0 (Daytime)", hist: "+0 (Sample < 3)" },
+      score: 0,
+      level: "LOW",
+      explanation: "Normal contact (+0). Normal frequency (+0). Normal timing (+0). Insufficient history (+0)."
+    },
+    {
+      id: "sim-2",
+      title: "Simulation 2: Trusted Contact Repeated Redials",
+      badge: "Score: 35 / 100 [MEDIUM]",
+      profile: { id: 102, name: "Mom", phone: "+91 98123 45678", rel: "Family", prio: "TRUSTED" },
+      recentsCount: 2,
+      recentsText: "2 CallRecords [t-6m, t-3m]",
+      historyText: "2 calls (duration: 120s, answered)",
+      timeStr: "15:00 (Daytime)",
+      factors: { identity: "+20 (TRUSTED)", freq: "+15 (Repeated >= 1)", time: "+0 (Daytime)", hist: "+0 (Sample < 3)" },
+      score: 35,
+      level: "MEDIUM",
+      explanation: "Trusted contact (+20). Repeated calls (+15). Normal timing (+0). Insufficient history (+0)."
+    },
+    {
+      id: "sim-3",
+      title: "Simulation 3: Late Night Emergency Call",
+      badge: "Score: 80 / 100 [HIGH]",
+      profile: { id: 103, name: "Dad", phone: "+91 98222 33445", rel: "Family", prio: "EMERGENCY" },
+      recentsCount: 3,
+      recentsText: "3 CallRecords [t-9m, t-6m, t-2m]",
+      historyText: "2 calls (duration: 60s, answered)",
+      timeStr: "03:15 (Late Night 3 AM)",
+      factors: { identity: "+30 (EMERGENCY)", freq: "+30 (High Freq >= 3)", time: "+20 (Night & Emg)", hist: "+0 (Sample < 3)" },
+      score: 80,
+      level: "HIGH",
+      explanation: "Emergency contact (+30). High frequency (+30). Late night (+20). Insufficient history (+0)."
+    },
+    {
+      id: "sim-4",
+      title: "Simulation 4: Boundary Edge Case (All 4 Factors Triggered)",
+      badge: "Score: 100 / 100 [HIGH]",
+      profile: { id: 104, name: "Hospital Emergency", phone: "+91 91111 22233", rel: "Medical", prio: "EMERGENCY" },
+      recentsCount: 4,
+      recentsText: "4 CallRecords [t-12m, t-9m, t-6m, t-2m]",
+      historyText: "4 calls (3 missed = 75% missed rate)",
+      timeStr: "02:40 (Late Night 2 AM)",
+      factors: { identity: "+30 (EMERGENCY)", freq: "+30 (High Freq)", time: "+20 (Night & Emg)", hist: "+20 (>=50% Missed)" },
+      score: 100,
+      level: "HIGH",
+      explanation: "Emergency (+30). High frequency (+30). Late night (+20). Historically high missed rate (+20)."
+    }
+  ];
+
+  const currentSim = SIMULATIONS[simIndex];
+
+  // Auto-play timer
+  useEffect(() => {
+    let interval = null;
+    if (isPlaying) {
+      interval = setInterval(() => {
+        setStep((prev) => (prev % 6) + 1);
+      }, 2400);
+    }
+    return () => clearInterval(interval);
+  }, [isPlaying]);
+
+  const STEP_DETAILS = {
+    1: {
+      title: "Step 1: Entity Object Instantiation on JVM Heap",
+      concept: "Encapsulation & State Allocation",
+      narrative: <span>Allocating POJO instances on JVM Heap: <b>new CallerProfile(...)</b> and <b>ArrayList&lt;CallRecord&gt;</b> encapsulate state with private member fields and public getters.</span>,
+      code: `CallerProfile profile = new CallerProfile(${currentSim.profile.id}, "${currentSim.profile.name}", "${currentSim.profile.phone}", "${currentSim.profile.rel}", Priority.${currentSim.profile.prio});\nList<CallRecord> recentCalls = repository.getRecentCalls(phone, windowStart);`,
+      activeNodes: ["profile", "recent", "history"],
+      activeArrows: []
+    },
+    2: {
+      title: "Step 2: Aggregation & Object Composition (CallContext)",
+      concept: "Object Composition (Has-A)",
+      narrative: <span><b>CallContext</b> bundles references via Composition (has-a <i>CallerProfile</i>, has-many <i>CallRecord</i>s). Isolates the Engine from database schemas.</span>,
+      code: `CallContext context = new CallContext(profile, recentCalls, historicalCalls, timestamp);`,
+      activeNodes: ["profile", "recent", "history", "context"],
+      activeArrows: ["p2c", "r2c", "h2c"]
+    },
+    3: {
+      title: "Step 3: Message Passing & Pure Service Invocation",
+      concept: "Message Passing & Loose Coupling",
+      narrative: <span>Invoking <b>WeightedRuleEngine.evaluate(context)</b> by reference. The engine evaluates urgency as a pure deterministic calculation without mutating caller state.</span>,
+      code: `WeightedRuleEngine engine = new WeightedRuleEngine();\nUrgencyResult result = engine.evaluate(context);`,
+      activeNodes: ["context", "engine"],
+      activeArrows: ["c2e"]
+    },
+    4: {
+      title: "Step 4: Internal 4-Factor Evaluation Pipeline",
+      concept: "Business Logic Encapsulation",
+      narrative: <span>Engine executes 4 weighted rules: <b>Identity</b> (${currentSim.factors.identity}), <b>Frequency</b> (${currentSim.factors.freq}), <b>Timing</b> (${currentSim.factors.time}), and <b>History</b> (${currentSim.factors.hist}). Clamps score 0–100.</span>,
+      code: `// Rule 1: ${currentSim.factors.identity}\n// Rule 2: ${currentSim.factors.freq}\n// Rule 3: ${currentSim.factors.time}\n// Rule 4: ${currentSim.factors.hist}\nscore = Math.max(0, Math.min(100, rawScore)); // Total: ${currentSim.score}`,
+      activeNodes: ["engine"],
+      activeArrows: ["c2e"]
+    },
+    5: {
+      title: "Step 5: Value Object Return (UrgencyResult DTO)",
+      concept: "Data Transfer Object (DTO) & Immutability",
+      narrative: <span>Engine creates an immutable <b>UrgencyResult</b> DTO containing score (${currentSim.score}), enum Level.${currentSim.level}, and explanation text.</span>,
+      code: `return new UrgencyResult(${currentSim.score}, UrgencyResult.Level.${currentSim.level}, "${currentSim.explanation}");`,
+      activeNodes: ["engine", "result"],
+      activeArrows: ["e2r"]
+    },
+    6: {
+      title: "Step 6: Persistence Layer Hand-off (CallRepository & SQLite)",
+      concept: "Repository Pattern & SQLite DAO",
+      narrative: <span>Application serializes evaluation into a <b>CallRecord</b> entity and calls <b>CallRepository.saveCallRecord(record)</b> to persist into SQLite table <i>call_history</i>.</span>,
+      code: `CallRecord record = new CallRecord(0, phone, timestamp, 0, result.getScore(), result.getUrgencyLevel().name(), result.getExplanation());\nrepository.saveCallRecord(record);`,
+      activeNodes: ["result", "repo", "db"],
+      activeArrows: ["r2repo", "repo2db"]
+    }
+  };
+
+  const curStep = STEP_DETAILS[step];
+
+  return (
+    <div className="oop-container">
+      {/* Top Controls Bar */}
+      <div className="oop-controls-bar">
+        {/* Simulation Scenario Switcher */}
+        <div className="oop-sim-switcher">
+          <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-secondary)' }}>
+            Simulation Scenario:
+          </span>
+          {SIMULATIONS.map((sim, i) => (
+            <button
+              key={sim.id}
+              className={`oop-sim-btn ${simIndex === i ? "active" : ""}`}
+              onClick={() => { setSimIndex(i); setStep(1); }}
+            >
+              Sim {i + 1} ({sim.level})
+            </button>
+          ))}
+        </div>
+
+        {/* Playback Controls */}
+        <div className="oop-playback-controls">
+          <button 
+            className="playback-btn" 
+            onClick={() => setStep(prev => prev > 1 ? prev - 1 : 6)}
+            title="Previous Step"
+          >
+            &#9664; Prev
+          </button>
+          <button 
+            className={`playback-btn ${isPlaying ? "" : "btn-play"}`} 
+            onClick={() => setIsPlaying(!isPlaying)}
+          >
+            {isPlaying ? "❚❚ Pause" : "▶ Auto Play"}
+          </button>
+          <button 
+            className="playback-btn" 
+            onClick={() => setStep(prev => (prev % 6) + 1)}
+            title="Next Step"
+          >
+            Next &#9654;
+          </button>
+          <button 
+            className="playback-btn" 
+            onClick={() => { setStep(1); setIsPlaying(false); }}
+            title="Reset to Step 1"
+          >
+            &#8634; Reset
+          </button>
+          <div className="step-indicator-pill">
+            STEP {step} / 6
+          </div>
+        </div>
+      </div>
+
+      {/* Main Interactive Stage with Animated SVG Connections & Object Cards */}
+      <div className="oop-stage-card">
+        {/* SVG Arrow Connectors Canvas */}
+        <svg className="oop-canvas-svg" viewBox="0 0 1440 680" preserveAspectRatio="none">
+          <defs>
+            <marker id="arrow-blue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 1 L 10 5 L 0 9 z" fill="#38bdf8" />
+            </marker>
+            <marker id="arrow-dim" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 1 L 10 5 L 0 9 z" fill="rgba(255,255,255,0.2)" />
+            </marker>
+          </defs>
+
+          {/* Arrow 1: CallerProfile -> CallContext */}
+          <path 
+            d="M 290 120 C 340 120, 360 280, 410 280" 
+            fill="none" 
+            stroke={curStep.activeArrows.includes("p2c") ? "#38bdf8" : "rgba(255,255,255,0.12)"}
+            strokeWidth={curStep.activeArrows.includes("p2c") ? "3" : "1.5"}
+            markerEnd={curStep.activeArrows.includes("p2c") ? "url(#arrow-blue)" : "url(#arrow-dim)"}
+            className={`svg-arrow-line ${curStep.activeArrows.includes("p2c") ? "active-arrow" : ""}`}
+          />
+
+          {/* Arrow 2: recentCalls -> CallContext */}
+          <path 
+            d="M 290 310 C 340 310, 360 320, 410 320" 
+            fill="none" 
+            stroke={curStep.activeArrows.includes("r2c") ? "#38bdf8" : "rgba(255,255,255,0.12)"}
+            strokeWidth={curStep.activeArrows.includes("r2c") ? "3" : "1.5"}
+            markerEnd={curStep.activeArrows.includes("r2c") ? "url(#arrow-blue)" : "url(#arrow-dim)"}
+            className={`svg-arrow-line ${curStep.activeArrows.includes("r2c") ? "active-arrow" : ""}`}
+          />
+
+          {/* Arrow 3: historicalCalls -> CallContext */}
+          <path 
+            d="M 290 490 C 340 490, 360 360, 410 360" 
+            fill="none" 
+            stroke={curStep.activeArrows.includes("h2c") ? "#38bdf8" : "rgba(255,255,255,0.12)"}
+            strokeWidth={curStep.activeArrows.includes("h2c") ? "3" : "1.5"}
+            markerEnd={curStep.activeArrows.includes("h2c") ? "url(#arrow-blue)" : "url(#arrow-dim)"}
+            className={`svg-arrow-line ${curStep.activeArrows.includes("h2c") ? "active-arrow" : ""}`}
+          />
+
+          {/* Arrow 4: CallContext -> WeightedRuleEngine */}
+          <path 
+            d="M 690 320 C 720 320, 730 320, 760 320" 
+            fill="none" 
+            stroke={curStep.activeArrows.includes("c2e") ? "#38bdf8" : "rgba(255,255,255,0.12)"}
+            strokeWidth={curStep.activeArrows.includes("c2e") ? "3" : "1.5"}
+            markerEnd={curStep.activeArrows.includes("c2e") ? "url(#arrow-blue)" : "url(#arrow-dim)"}
+            className={`svg-arrow-line ${curStep.activeArrows.includes("c2e") ? "active-arrow" : ""}`}
+          />
+
+          {/* Arrow 5: WeightedRuleEngine -> UrgencyResult */}
+          <path 
+            d="M 1040 280 C 1070 280, 1090 140, 1120 140" 
+            fill="none" 
+            stroke={curStep.activeArrows.includes("e2r") ? "#38bdf8" : "rgba(255,255,255,0.12)"}
+            strokeWidth={curStep.activeArrows.includes("e2r") ? "3" : "1.5"}
+            markerEnd={curStep.activeArrows.includes("e2r") ? "url(#arrow-blue)" : "url(#arrow-dim)"}
+            className={`svg-arrow-line ${curStep.activeArrows.includes("e2r") ? "active-arrow" : ""}`}
+          />
+
+          {/* Arrow 6: UrgencyResult -> CallRepository */}
+          <path 
+            d="M 1250 210 C 1250 250, 1250 310, 1250 350" 
+            fill="none" 
+            stroke={curStep.activeArrows.includes("r2repo") ? "#38bdf8" : "rgba(255,255,255,0.12)"}
+            strokeWidth={curStep.activeArrows.includes("r2repo") ? "3" : "1.5"}
+            markerEnd={curStep.activeArrows.includes("r2repo") ? "url(#arrow-blue)" : "url(#arrow-dim)"}
+            className={`svg-arrow-line ${curStep.activeArrows.includes("r2repo") ? "active-arrow" : ""}`}
+          />
+
+          {/* Arrow 7: CallRepository -> SQLite Database */}
+          <path 
+            d="M 1250 490 C 1250 510, 1250 520, 1250 540" 
+            fill="none" 
+            stroke={curStep.activeArrows.includes("repo2db") ? "#38bdf8" : "rgba(255,255,255,0.12)"}
+            strokeWidth={curStep.activeArrows.includes("repo2db") ? "3" : "1.5"}
+            markerEnd={curStep.activeArrows.includes("repo2db") ? "url(#arrow-blue)" : "url(#arrow-dim)"}
+            className={`svg-arrow-line ${curStep.activeArrows.includes("repo2db") ? "active-arrow" : ""}`}
+          />
+        </svg>
+
+        {/* Object Nodes Interactive Grid */}
+        <div className="oop-nodes-grid">
+          {/* COLUMN 1: Entities / Input Objects */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            {/* Node 1: CallerProfile */}
+            <div className={`oop-node ${curStep.activeNodes.includes("profile") ? "active" : "dimmed"}`}>
+              <div className="oop-node-header">
+                <div className="oop-node-title">
+                  <span>&#128100;</span> CallerProfile
+                </div>
+                <div className="oop-heap-address">@Heap:0x7A1</div>
+              </div>
+              <div className="oop-class-tag">class com.safecall.model.CallerProfile</div>
+              <div className="oop-field-list">
+                <div className="oop-field-row"><span className="oop-field-name">long id:</span><span className="oop-field-val">{currentSim.profile.id}</span></div>
+                <div className="oop-field-row"><span className="oop-field-name">String name:</span><span className="oop-field-val val-hl">"{currentSim.profile.name}"</span></div>
+                <div className="oop-field-row"><span className="oop-field-name">String phone:</span><span className="oop-field-val">{currentSim.profile.phone}</span></div>
+                <div className="oop-field-row"><span className="oop-field-name">String rel:</span><span className="oop-field-val">"{currentSim.profile.rel}"</span></div>
+                <div className="oop-field-row">
+                  <span className="oop-field-name">Priority prio:</span>
+                  <span className={`oop-field-val ${currentSim.profile.prio === "EMERGENCY" ? "val-urgent" : currentSim.profile.prio === "TRUSTED" ? "val-trusted" : ""}`}>
+                    Priority.{currentSim.profile.prio}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Node 2: recentCalls List */}
+            <div className={`oop-node ${curStep.activeNodes.includes("recent") ? "active" : "dimmed"}`}>
+              <div className="oop-node-header">
+                <div className="oop-node-title">
+                  <span>&#128257;</span> recentCalls
+                </div>
+                <div className="oop-heap-address">@Heap:0x8B4</div>
+              </div>
+              <div className="oop-class-tag">java.util.List&lt;CallRecord&gt;</div>
+              <div className="oop-field-list">
+                <div className="oop-field-row"><span className="oop-field-name">size():</span><span className="oop-field-val val-hl">{currentSim.recentsCount} items</span></div>
+                <div className="oop-field-row"><span className="oop-field-name">window:</span><span className="oop-field-val">&lt;= 15 mins</span></div>
+                <div className="oop-field-row"><span className="oop-field-name">payload:</span><span className="oop-field-val" style={{ fontSize: '10.5px' }}>{currentSim.recentsText}</span></div>
+              </div>
+            </div>
+
+            {/* Node 3: historicalCalls List */}
+            <div className={`oop-node ${curStep.activeNodes.includes("history") ? "active" : "dimmed"}`}>
+              <div className="oop-node-header">
+                <div className="oop-node-title">
+                  <span>&#128202;</span> historicalCalls
+                </div>
+                <div className="oop-heap-address">@Heap:0x9C2</div>
+              </div>
+              <div className="oop-class-tag">java.util.List&lt;CallRecord&gt;</div>
+              <div className="oop-field-list">
+                <div className="oop-field-row"><span className="oop-field-name">callTime:</span><span className="oop-field-val val-hl">{currentSim.timeStr}</span></div>
+                <div className="oop-field-row"><span className="oop-field-name">historyData:</span><span className="oop-field-val" style={{ fontSize: '10.5px' }}>{currentSim.historyText}</span></div>
+              </div>
+            </div>
+          </div>
+
+          {/* COLUMN 2: Aggregated Context (Composition) */}
+          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <div className={`oop-node ${curStep.activeNodes.includes("context") ? "active" : "dimmed"}`} style={{ minHeight: '260px' }}>
+              <div className="oop-node-header">
+                <div className="oop-node-title">
+                  <span>&#129513;</span> CallContext
+                </div>
+                <div className="oop-heap-address">@Heap:0x3D9</div>
+              </div>
+              <div className="oop-class-tag">class com.safecall.model.CallContext</div>
+              <div style={{ fontSize: '11px', color: '#38bdf8', marginBottom: '8px', fontStyle: 'italic' }}>
+                // Composite Aggregation (Has-A)
+              </div>
+              <div className="oop-field-list">
+                <div className="oop-field-row"><span className="oop-field-name">profile ref:</span><span className="oop-field-val">&rarr; @0x7A1</span></div>
+                <div className="oop-field-row"><span className="oop-field-name">recentCalls ref:</span><span className="oop-field-val">&rarr; @0x8B4</span></div>
+                <div className="oop-field-row"><span className="oop-field-name">historyCalls ref:</span><span className="oop-field-val">&rarr; @0x9C2</span></div>
+                <div className="oop-field-row"><span className="oop-field-name">currentCallTime:</span><span className="oop-field-val">{currentSim.timeStr}</span></div>
+              </div>
+              <div style={{ marginTop: '12px', padding: '8px', background: 'rgba(0,0,0,0.3)', borderRadius: '6px', fontSize: '11px', color: '#94a3b8' }}>
+                Method Accessors:<br/>
+                &bull; getProfile()<br/>
+                &bull; getRecentCalls()<br/>
+                &bull; getHistoricalCalls()<br/>
+                &bull; getCurrentCallTime()
+              </div>
+            </div>
+          </div>
+
+          {/* COLUMN 3: WeightedRuleEngine Service */}
+          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <div className={`oop-node ${curStep.activeNodes.includes("engine") ? "active" : "dimmed"}`} style={{ minHeight: '340px' }}>
+              <div className="oop-node-header">
+                <div className="oop-node-title">
+                  <span>&#9881;</span> WeightedRuleEngine
+                </div>
+                <div className="oop-heap-address">@Singleton:0xE1F</div>
+              </div>
+              <div className="oop-class-tag">class com.safecall.engine.WeightedRuleEngine</div>
+              <div style={{ fontSize: '11px', color: '#a78bfa', marginBottom: '10px' }}>
+                Method: evaluate(CallContext context)
+              </div>
+
+              {/* 4 Internal Rule Blocks */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ padding: '6px 8px', background: 'rgba(255,255,255,0.03)', borderRadius: '6px', fontSize: '11px' }}>
+                  <div style={{ color: '#94a3b8' }}>Rule 1: Caller Identity (Max 30)</div>
+                  <div style={{ color: '#38bdf8', fontWeight: '700' }}>{currentSim.factors.identity}</div>
+                </div>
+                <div style={{ padding: '6px 8px', background: 'rgba(255,255,255,0.03)', borderRadius: '6px', fontSize: '11px' }}>
+                  <div style={{ color: '#94a3b8' }}>Rule 2: Call Frequency (Max 30)</div>
+                  <div style={{ color: '#38bdf8', fontWeight: '700' }}>{currentSim.factors.freq}</div>
+                </div>
+                <div style={{ padding: '6px 8px', background: 'rgba(255,255,255,0.03)', borderRadius: '6px', fontSize: '11px' }}>
+                  <div style={{ color: '#94a3b8' }}>Rule 3: Timing Context (Max 20)</div>
+                  <div style={{ color: '#38bdf8', fontWeight: '700' }}>{currentSim.factors.time}</div>
+                </div>
+                <div style={{ padding: '6px 8px', background: 'rgba(255,255,255,0.03)', borderRadius: '6px', fontSize: '11px' }}>
+                  <div style={{ color: '#94a3b8' }}>Rule 4: Historical Behavior (Max 20)</div>
+                  <div style={{ color: '#38bdf8', fontWeight: '700' }}>{currentSim.factors.hist}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* COLUMN 4: DTO Result & Persistence DAO */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            {/* Node 5: UrgencyResult DTO */}
+            <div className={`oop-node ${curStep.activeNodes.includes("result") ? "active" : "dimmed"}`}>
+              <div className="oop-node-header">
+                <div className="oop-node-title">
+                  <span>&#128225;</span> UrgencyResult
+                </div>
+                <div className="oop-heap-address">@Heap:0x5F2</div>
+              </div>
+              <div className="oop-class-tag">class com.safecall.model.UrgencyResult (DTO)</div>
+              <div className="oop-field-list">
+                <div className="oop-field-row"><span className="oop-field-name">int score:</span><span className="oop-field-val val-hl">{currentSim.score} / 100</span></div>
+                <div className="oop-field-row">
+                  <span className="oop-field-name">Level level:</span>
+                  <span className={`oop-field-val ${currentSim.level === "HIGH" ? "val-urgent" : currentSim.level === "MEDIUM" ? "val-trusted" : ""}`}>
+                    Level.{currentSim.level}
+                  </span>
+                </div>
+                <div className="oop-field-row"><span className="oop-field-name">explanation:</span><span className="oop-field-val" style={{ fontSize: '10px' }}>"{currentSim.explanation}"</span></div>
+              </div>
+            </div>
+
+            {/* Node 6: CallRepository DAO */}
+            <div className={`oop-node ${curStep.activeNodes.includes("repo") ? "active" : "dimmed"}`}>
+              <div className="oop-node-header">
+                <div className="oop-node-title">
+                  <span>&#128451;</span> CallRepository
+                </div>
+                <div className="oop-heap-address">@DAO:0x1C8</div>
+              </div>
+              <div className="oop-class-tag">class com.safecall.db.CallRepository</div>
+              <div className="oop-field-list">
+                <div className="oop-field-row"><span className="oop-field-name">dbHelper:</span><span className="oop-field-val">DatabaseHelper</span></div>
+                <div className="oop-field-row"><span className="oop-field-name">method:</span><span className="oop-field-val val-hl">saveCallRecord()</span></div>
+              </div>
+            </div>
+
+            {/* Node 7: SQLite DB Storage */}
+            <div className={`oop-node ${curStep.activeNodes.includes("db") ? "active" : "dimmed"}`} style={{ background: 'rgba(8, 20, 36, 0.95)' }}>
+              <div className="oop-node-header">
+                <div className="oop-node-title">
+                  <span>&#128190;</span> SQLite: safecall.db
+                </div>
+                <div className="oop-heap-address">Disk DB</div>
+              </div>
+              <div className="oop-class-tag">TABLE call_history</div>
+              <div style={{ fontSize: '11px', color: '#34d399', fontFamily: 'var(--font-mono)' }}>
+                INSERT INTO call_history (phone, timestamp, urgencyScore, urgencyLevel, explanation)...
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Step Explanation & Java Code Live Banner */}
+      <div className="oop-step-footer">
+        <div style={{ flex: 1 }}>
+          <div className="oop-step-concept">
+            <span className="concept-badge">{curStep.concept}</span>
+            <span style={{ fontSize: '14px', fontWeight: '700', color: 'white' }}>{curStep.title}</span>
+          </div>
+          <div className="oop-step-narrative" style={{ marginTop: '8px' }}>
+            {curStep.narrative}
+          </div>
+        </div>
+
+        {/* Live Java Code Box for Active Step */}
+        <div style={{ minWidth: '460px', background: '#050811', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '10px 14px', fontFamily: 'var(--font-mono)', fontSize: '11px', color: '#cbd5e1' }}>
+          <div style={{ color: 'var(--text-muted)', marginBottom: '4px', fontSize: '10px' }}>// Executing Java Statement:</div>
+          <pre style={{ margin: 0, whiteSpace: 'pre-wrap', color: '#38bdf8' }}>{curStep.code}</pre>
+        </div>
+      </div>
+    </div>
+  );
 }
+
+ReactDOM.render(<App />, document.getElementById("root"));
+
